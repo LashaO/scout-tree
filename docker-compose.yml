@@ -1,0 +1,12 @@
+services:
+  viewer:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Required; no default. Passed through from the host environment.
+      - GIS_VIEWER_PASSWORD
+    volumes:
+      - ./data:/app/data
+      - ./raw_data:/app/raw_data
+    restart: unless-stopped

@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scout Tree — User Guide</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    color: #1a1a1a; line-height: 1.6; max-width: 860px; margin: 0 auto;
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 28px; margin-bottom: 8px; }
+  h2 { font-size: 20px; margin-top: 40px; margin-bottom: 12px; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; }
+  h3 { font-size: 16px; margin-top: 24px; margin-bottom: 8px; color: #374151; }
+  p { margin-bottom: 12px; }
+  .subtitle { color: #6b7280; font-size: 15px; margin-bottom: 32px; }
+  a { color: #2563eb; }
+
+  .cred-box {
+    background: #f0f4ff; border: 1px solid #c7d2fe; border-radius: 8px;
+    padding: 16px 20px; margin: 16px 0; font-size: 15px;
+  }
+  .cred-box .label { color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .cred-box .value { font-weight: 700; font-size: 17px; font-family: 'SF Mono', 'Consolas', monospace; }
+
+  .tip {
+    background: #fffbeb; border-left: 4px solid #f59e0b; padding: 12px 16px;
+    margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 14px;
+  }
+  .tip strong { color: #92400e; }
+
+  .warning {
+    background: #fef2f2; border-left: 4px solid #ef4444; padding: 12px 16px;
+    margin: 16px 0; border-radius: 0 6px 6px 0; font-size: 14px;
+  }
+  .warning strong { color: #991b1b; }
+
+  /* Fake UI mockups */
+  .ui-mock {
+    background: rgba(255,255,255,0.95); border-radius: 8px;
+    padding: 14px; width: 280px; box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    font-size: 13px; margin: 16px 0; border: 1px solid #e5e7eb;
+  }
+  .ui-mock .section { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+  .ui-mock .section:last-child { border-bottom: none; margin-bottom: 0; }
+  .ui-mock .section-title { font-weight: 600; margin-bottom: 6px; font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+  .ui-mock .radio-group { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+  .ui-mock .radio-group button {
+    padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
+    background: #fff; font-size: 12px; cursor: default; position: relative;
+  }
+  .ui-mock .radio-group button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .ui-mock .slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .ui-mock .slider-row .label { min-width: 70px; font-size: 12px; }
+  .ui-mock .slider-row input[type="range"] { flex: 1; }
+  .ui-mock .slider-row .value { min-width: 32px; text-align: right; font-size: 12px; font-weight: 600; }
+  .ui-mock .color-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+  .ui-mock label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-size: 12px; }
+
+  .info-badge-demo {
+    display: inline-block; width: 13px; height: 13px; border-radius: 50%;
+    background: #6b7280; color: #fff; font-size: 8px; line-height: 13px;
+    text-align: center; font-weight: 700; font-style: italic;
+    font-family: Georgia, serif; vertical-align: top; margin-left: 2px;
+  }
+
+  .step { margin-bottom: 20px; }
+  .step-num {
+    display: inline-block; width: 28px; height: 28px; border-radius: 50%;
+    background: #2563eb; color: #fff; text-align: center; line-height: 28px;
+    font-weight: 700; font-size: 14px; margin-right: 8px; vertical-align: middle;
+  }
+  .step-title { font-weight: 600; font-size: 15px; vertical-align: middle; }
+
+  .filter-example {
+    background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;
+    padding: 16px; margin: 12px 0;
+  }
+  .filter-example .filter-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; }
+  .filter-row .fname { min-width: 120px; color: #555; }
+  .filter-row .fval { font-weight: 600; font-family: monospace; }
+
+  .coord-box {
+    background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px;
+    padding: 10px 14px; font-family: 'SF Mono', 'Consolas', monospace;
+    font-size: 14px; margin: 8px 0; display: inline-block;
+  }
+
+  ol, ul { margin-left: 24px; margin-bottom: 12px; }
+  li { margin-bottom: 6px; }
+
+  .case-study {
+    background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px;
+    padding: 20px; margin: 20px 0;
+  }
+  .case-study h3 { color: #166534; margin-top: 0; }
+
+  .toc { background: #f9fafb; border-radius: 8px; padding: 16px 20px; margin-bottom: 32px; }
+  .toc-title { font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .toc a { text-decoration: none; font-size: 14px; }
+  .toc ol { margin-bottom: 0; }
+  .toc li { margin-bottom: 4px; }
+
+  .two-col { display: flex; gap: 24px; align-items: flex-start; }
+  .two-col .text { flex: 1; }
+
+  @media print {
+    body { max-width: 100%; padding: 20px; }
+    .ui-mock { break-inside: avoid; }
+    .case-study { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Scout Tree</h1>
+<p class="subtitle">User Guide &mdash; Tree Crown Detection &amp; Health Assessment</p>
+
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#access">Access &amp; Login</a></li>
+    <li><a href="#navigation">Navigating the Map</a></li>
+    <li><a href="#workflow">Recommended Workflow: Finding Dead &amp; Damaged Trees</a></li>
+    <li><a href="#history">Comparing a Tree Across Captures (Show History)</a></li>
+    <li><a href="#casestudy">Case Study: Site E &amp; Site D Groves</a></li>
+    <li><a href="#tips">Tips &amp; Reference</a></li>
+  </ol>
+</div>
+
+<!-- ================================================ -->
+<h2 id="access">1. Access &amp; Login</h2>
+
+<p>Open the following link in your web browser (Chrome or Firefox recommended):</p>
+<p><a href="http://rodan.dyn.wildme.io:8085/">http://rodan.dyn.wildme.io:8085/</a></p>
+
+<p>You will be prompted for credentials:</p>
+
+<div class="cred-box">
+  <div class="label">Username</div>
+  <div class="value">seqmap</div>
+  <div style="height:8px"></div>
+  <div class="label">Password</div>
+  <div class="value">seqMapUI@26</div>
+</div>
+
+<p>After logging in, the map loads with the most recent capture visible. All imagery is from the most recent delivery covering the survey region.</p>
+
+<!-- ================================================ -->
+<h2 id="navigation">2. Navigating the Map</h2>
+
+<h3>Captures</h3>
+
+<p>The viewer contains <strong>6 captures</strong>, each covering a different area. Use the <strong>Captures</strong> panel to switch between them:</p>
+
+<div class="two-col">
+  <div class="ui-mock">
+    <div class="section">
+      <div class="section-title">Captures</div>
+      <div style="font-size:10px; color:#999; margin-bottom:4px;">double-click to jump to capture boundary</div>
+      <div class="radio-group">
+        <button>Site F East <span class="info-badge-demo">i</span></button>
+        <button>Site G North <span class="info-badge-demo">i</span></button>
+        <button>Site F <span class="info-badge-demo">i</span></button>
+        <button>Site B <span class="info-badge-demo">i</span></button>
+        <button class="active">Site C <span class="info-badge-demo" style="background:#1d4ed8">i</span></button>
+        <button>Site A <span class="info-badge-demo">i</span></button>
+      </div>
+      <div style="font-size:11px; color:#555; margin-top:4px; line-height:1.5;">
+        <div><strong>Site F East</strong> &mdash; Narrow sliver east of Site F Grove</div>
+        <div><strong>Site G North</strong> &mdash; Strip north of Site G Grove</div>
+        <div><strong>Site F</strong> &mdash; Contains Site F Grove</div>
+        <div><strong>Site B</strong> &mdash; Contains Site B, Site H &amp; Site I Groves</div>
+        <div><strong>Site C</strong> &mdash; Contains Site D, Site E &amp; Site J Groves</div>
+        <div><strong>Site A</strong> &mdash; Contains Site A, Site K &amp; Site L Groves</div>
+      </div>
+    </div>
+  </div>
+  <div class="text">
+    <ul>
+      <li><strong>Single click</strong> &mdash; switch to that capture (layers swap, camera stays)</li>
+      <li><strong>Double-click</strong> &mdash; switch <em>and fly</em> to the capture's boundary. This is the fastest way to jump between areas.</li>
+      <li><strong>Right-click</strong> a capture button to get a context menu:</li>
+    </ul>
+    <div style="display:inline-block; background:#fff; border-radius:6px; padding:4px 0; box-shadow:0 2px 10px rgba(0,0,0,0.25); min-width:160px; font-size:13px; margin:6px 0 10px 20px;">
+      <div style="padding:7px 14px; display:flex; align-items:center; gap:8px; background:#f0f4ff; cursor:default;">&#128506; Fly to Site C</div>
+    </div>
+    <ul>
+      <li><strong>Hover over the <span class="info-badge-demo">i</span> badge</strong> &mdash; see which groves are included in the capture</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Go to Coordinates</h3>
+
+<p>If you know the location you want to inspect, type coordinates into the search box at the top of the panel in <strong>lat, lng</strong> format and press Enter:</p>
+
+<div class="ui-mock" style="width:280px">
+  <div class="section">
+    <div class="section-title">Go to Coordinates</div>
+    <input type="text" style="width:100%; padding:6px 8px; border:1px solid #ccc; border-radius:4px; font-size:12px;" value="&lt;lat&gt;, &lt;lng&gt;" readonly />
+  </div>
+</div>
+
+<p>The map flies to that location and drops a red marker. Then <strong>click through captures</strong> until the satellite imagery lights up &mdash; that tells you which capture covers your point of interest.</p>
+
+<div class="tip">
+  <strong>Tip:</strong> The imagery comes from diagonal satellite strips, so not every capture covers every location within its bounding box. If a capture shows black at your coordinates, try another one.
+</div>
+
+<h3>Raster Layers</h3>
+
+<p>Switch between three imagery layers at the bottom of the panel:</p>
+
+<div class="ui-mock" style="width:280px">
+  <div class="section" style="border-bottom:none">
+    <div class="section-title">Raster Layer</div>
+    <div class="radio-group">
+      <button class="active">RGB</button>
+      <button>NED</button>
+      <button>NDVI</button>
+    </div>
+    <div class="slider-row">
+      <span class="label">Opacity</span>
+      <input type="range" min="0" max="1" step="0.05" value="1" style="flex:1" />
+      <span class="value">1</span>
+    </div>
+  </div>
+</div>
+
+<ul>
+  <li><strong>RGB</strong> &mdash; true-color satellite imagery (0.3m resolution)</li>
+  <li><strong>NED</strong> &mdash; near-infrared, red edge &amp; deep blue satellite bands</li>
+  <li><strong>NDVI</strong> &mdash; vegetation index (greener = more photosynthetic activity)</li>
+</ul>
+<p>The <strong>Opacity</strong> slider lets you dim the raster to better see detection polygons underneath.</p>
+
+<!-- ================================================ -->
+<h2 id="workflow">3. Recommended Workflow: Finding Dead &amp; Damaged Trees</h2>
+
+<p>The model classifies each detected tree crown by <strong>species</strong> (mature, sapling, other) and <strong>health</strong> (normal, dead, fire damage, top-down threat). Use the filters to isolate the trees you're interested in.</p>
+
+<h3>Step-by-step: Finding dead mature trees</h3>
+
+<div class="step">
+  <span class="step-num">1</span>
+  <span class="step-title">Set Color By to Health</span>
+  <p style="margin-left:36px; margin-top:4px;">This color-codes polygons: <span class="color-swatch" style="background:#2ecc71; display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle;"></span> normal, <span class="color-swatch" style="background:#e74c3c; display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle;"></span> dead, <span class="color-swatch" style="background:#e67e22; display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle;"></span> fire damage, <span class="color-swatch" style="background:#f1c40f; display:inline-block; width:12px; height:12px; border-radius:2px; vertical-align:middle;"></span> top-down threat.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span>
+  <span class="step-title">Apply species + health filters</span>
+
+  <div class="filter-example">
+    <div class="filter-title">For dead mature trees:</div>
+    <div class="filter-row"><span class="fname">p_seqmat &ge;</span> <span class="fval">0.30</span></div>
+    <div class="filter-row"><span class="fname">p_dead &ge;</span> <span class="fval">0.30</span></div>
+  </div>
+
+  <div class="filter-example">
+    <div class="filter-title">For top-down threat trees:</div>
+    <div class="filter-row"><span class="fname">p_seqmat &ge;</span> <span class="fval">0.30</span></div>
+    <div class="filter-row"><span class="fname">p_topdownt &ge;</span> <span class="fval">0.30</span></div>
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span>
+  <span class="step-title">Browse the map</span>
+  <p style="margin-left:36px; margin-top:4px;">Zoom in and scroll around. Matching tree crowns appear as colored polygons. <strong>Hover</strong> over a polygon to highlight it. <strong>Click</strong> to see detailed stats including species/health probabilities, canopy size, and center coordinates (with a copy button).</p>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span>
+  <span class="step-title">Copy coordinates for field reference</span>
+  <p style="margin-left:36px; margin-top:4px;">Click any detection polygon to open its popup. The <strong>Center</strong> row shows lat/lng coordinates with a copy button &mdash; click it to copy to your clipboard for GPS navigation or reporting.</p>
+</div>
+
+<div class="warning">
+  <strong>Important:</strong> Probability filters are chained with AND, not OR. Setting <code>p_dead &ge; 0.3</code> AND <code>p_topdownt &ge; 0.3</code> simultaneously will show almost nothing, because trees are rarely tagged with both conditions at high confidence. Filter for <strong>one health condition at a time</strong>.
+</div>
+
+<h3>Understanding the controls</h3>
+
+<div class="two-col">
+  <div class="ui-mock">
+    <div class="section">
+      <div class="section-title">Detection Confidence</div>
+      <div class="slider-row">
+        <span class="label">Score &ge;</span>
+        <input type="range" min="0.25" max="1" step="0.05" value="0.50" style="flex:1" />
+        <span class="value">0.50</span>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Species Probabilities</div>
+      <div class="slider-row"><span class="label">p_seqmat &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0.30" style="flex:1" /> <span class="value">0.30</span></div>
+      <div class="slider-row"><span class="label">p_seqsp &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0" style="flex:1" /> <span class="value">0</span></div>
+      <div class="slider-row"><span class="label">p_tree &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0" style="flex:1" /> <span class="value">0</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Health Probabilities</div>
+      <div class="slider-row"><span class="label">p_dead &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0.30" style="flex:1" /> <span class="value">0.30</span></div>
+      <div class="slider-row"><span class="label">p_firedama &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0" style="flex:1" /> <span class="value">0</span></div>
+      <div class="slider-row"><span class="label">p_normal &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0" style="flex:1" /> <span class="value">0</span></div>
+      <div class="slider-row"><span class="label">p_topdownt &ge;</span> <input type="range" min="0" max="1" step="0.05" value="0" style="flex:1" /> <span class="value">0</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Bbox Size (meters)</div>
+      <div class="slider-row"><span class="label">Width &ge;</span> <input type="range" min="0" max="40" step="1" value="0" style="flex:1" /> <span class="value">0</span></div>
+      <div class="slider-row"><span class="label">Height &ge;</span> <input type="range" min="0" max="65" step="1" value="0" style="flex:1" /> <span class="value">0</span></div>
+    </div>
+  </div>
+  <div class="text">
+    <p><strong>Detection Confidence</strong> &mdash; how confident the model is that a tree crown exists at that location. Best kept around <strong>0.50</strong>. Lowering it shows more detections but introduces false positives; raising it keeps only the most certain detections.</p>
+    <p><strong>Species Probabilities</strong> &mdash; filter by species prediction confidence. <code>p_seqmat</code> = mature, <code>p_seqsp</code> = sapling, <code>p_tree</code> = other.</p>
+    <p><strong>Health Probabilities</strong> &mdash; filter by health prediction confidence. <code>p_dead</code>, <code>p_firedama</code> (fire damage), <code>p_normal</code>, <code>p_topdownt</code> (top-down threat / crown dieback).</p>
+    <p><strong>Bbox Size</strong> &mdash; canopy width and height in meters, derived from the detection bounding box and 0.3m pixel resolution. Useful for filtering large/old-growth trees (e.g., Width &ge; 10m).</p>
+  </div>
+</div>
+
+<!-- ================================================ -->
+<h2 id="history">4. Comparing a Tree Across Captures (Show History)</h2>
+
+<p>When multiple captures overlap the same area (e.g., August 2025 and June 2022 imagery), you can compare how a specific tree looks across different dates. This is useful for tracking changes in tree health over time.</p>
+
+<h3>How to use Show History</h3>
+
+<div class="step">
+  <span class="step-num">1</span>
+  <span class="step-title">Right-click on a detection polygon</span>
+  <p style="margin-left:36px; margin-top:4px;">Find a tree you want to inspect. Right-click on its colored detection polygon to open the context menu.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span>
+  <span class="step-title">Click "Show history"</span>
+  <p style="margin-left:36px; margin-top:4px;">The context menu shows a clock icon with <strong>&#128338; Show history</strong> at the top (this only appears when you right-click on a detection polygon, not on empty map space). Click it.</p>
+  <div style="display:inline-block; background:#fff; border-radius:6px; padding:4px 0; box-shadow:0 2px 10px rgba(0,0,0,0.25); min-width:180px; font-size:13px; margin:8px 0 10px 36px;">
+    <div style="padding:7px 14px; display:flex; align-items:center; gap:8px; background:#f0f4ff; cursor:default;">&#128338; Show history</div>
+    <div style="height:1px; background:#e5e5e5; margin:3px 0;"></div>
+    <div style="padding:7px 14px; display:flex; align-items:center; gap:8px; cursor:default;">&#128205; Place a marker</div>
+  </div>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span>
+  <span class="step-title">Compare across captures</span>
+  <p style="margin-left:36px; margin-top:4px;">A dark overlay appears with <strong>side-by-side mini maps</strong> &mdash; one for each capture that covers this location. Each mini map shows:</p>
+  <ul style="margin-left:36px;">
+    <li>The satellite imagery (RGB, NED, or NDVI &mdash; whichever raster layer you currently have selected)</li>
+    <li>Detection outlines color-coded by the current Color By mode (species or health)</li>
+    <li>The capture name as a label above each tile</li>
+  </ul>
+  <p style="margin-left:36px; margin-top:4px;">The view is centered on the tree you right-clicked, zoomed to show the canopy and its immediate surroundings.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span>
+  <span class="step-title">Close the overlay</span>
+  <p style="margin-left:36px; margin-top:4px;">Click the <strong>&times;</strong> button in the top-right corner, or click anywhere outside the mini maps to close.</p>
+</div>
+
+<div class="case-study">
+<h3>Example: Tracking a tree across time</h3>
+<p>Navigate to Site A using coordinates <span class="coord-box" style="margin:0; padding:4px 10px; font-size:13px;">&lt;lat&gt;, &lt;lng&gt;</span> and switch to the <strong>Aug 2025 &mdash; Site A</strong> capture. Right-click on a detection polygon near the center and select <strong>&#128338; Show history</strong>.</p>
+<p>Since both the June 2022 and August 2025 captures overlap here, you'll see two mini maps side by side. Here's what it looks like:</p>
+
+<!-- History overlay mockup with real imagery -->
+<div style="background:rgba(0,0,0,0.85); border-radius:12px; padding:24px 28px; margin:16px 0; position:relative;">
+  <div style="color:#fff; font-size:14px; font-weight:600; letter-spacing:0.3px; text-align:center; margin-bottom:14px;">
+    tree &mdash; &lt;lat&gt;, &lt;lng&gt;
+  </div>
+  <div style="display:flex; gap:18px; justify-content:center; flex-wrap:wrap;">
+    <!-- June 2022 tile -->
+    <div style="text-align:center;">
+      <div style="color:#ccc; font-size:12px; font-weight:600; margin-bottom:6px;">Site A &mdash; June 2022</div>
+      <div style="position:relative; width:280px; height:280px; border-radius:6px; overflow:hidden; border:2px solid rgba(255,255,255,0.15);">
+        <img src="guide_assets/history_capture_a.jpg" alt="June 2022 satellite view" style="width:100%; height:100%; object-fit:cover;" />
+        <!-- Detection outline overlay (simulated) -->
+        <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 280 280">
+          <rect x="120" y="115" width="42" height="48" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="95" y="85" width="30" height="35" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="170" y="130" width="35" height="38" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="140" y="170" width="28" height="32" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="60" y="145" width="32" height="30" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="200" y="90" width="25" height="28" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="55" y="200" width="38" height="35" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+        </svg>
+      </div>
+    </div>
+    <!-- Aug 2025 tile -->
+    <div style="text-align:center;">
+      <div style="color:#ccc; font-size:12px; font-weight:600; margin-bottom:6px;">Aug 2025 &mdash; Site A</div>
+      <div style="position:relative; width:280px; height:280px; border-radius:6px; overflow:hidden; border:2px solid rgba(255,255,255,0.15);">
+        <img src="guide_assets/history_capture_b.jpg" alt="August 2025 satellite view" style="width:100%; height:100%; object-fit:cover;" />
+        <!-- Detection outline overlay (simulated) -->
+        <svg style="position:absolute; inset:0; width:100%; height:100%;" viewBox="0 0 280 280">
+          <rect x="118" y="112" width="44" height="50" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="92" y="82" width="32" height="37" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="168" y="128" width="37" height="40" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="138" y="168" width="30" height="34" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="58" y="143" width="34" height="32" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="198" y="88" width="27" height="30" fill="none" stroke="#e74c3c" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="53" y="198" width="40" height="37" fill="none" stroke="#2ecc71" stroke-width="1.5" opacity="0.9" rx="1" />
+          <rect x="225" y="155" width="25" height="28" fill="none" stroke="#f1c40f" stroke-width="1.5" opacity="0.9" rx="1" />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div style="color:#888; font-size:11px; text-align:center; margin-top:12px;">
+    <span style="display:inline-block; width:10px; height:10px; border:1.5px solid #2ecc71; border-radius:1px; margin-right:3px; vertical-align:middle;"></span> Normal &nbsp;
+    <span style="display:inline-block; width:10px; height:10px; border:1.5px solid #e74c3c; border-radius:1px; margin-right:3px; vertical-align:middle;"></span> Dead &nbsp;
+    <span style="display:inline-block; width:10px; height:10px; border:1.5px solid #f1c40f; border-radius:1px; margin-right:3px; vertical-align:middle;"></span> Top-down Threat
+  </div>
+</div>
+
+<p>In this example, you can compare the same trees between June 2022 (left) and August 2025 (right). Look for changes in canopy cover, new red outlines (newly dead trees), or shifts from green to yellow (emerging top-down threat). The detection outlines reflect the model's health classification at each time point.</p>
+</div>
+
+<div class="tip">
+  <strong>Tip:</strong> Show history only works where captures overlap. Many trees are only covered by a single capture &mdash; in that case, you'll see just one mini map. The Site A area has the best overlap between the June 2022 and August 2025 imagery.
+</div>
+
+<!-- ================================================ -->
+<h2 id="casestudy">5. Case Study: Inspecting Site E &amp; Site D Groves</h2>
+
+<div class="case-study">
+<h3>Goal: Survey dead and threatened trees in the Site E and Site D Groves</h3>
+
+<p>Both groves are covered by the <strong>Aug 2025 &mdash; Site C</strong> capture.</p>
+
+<div class="step">
+  <span class="step-num">1</span>
+  <span class="step-title">Navigate to the capture</span>
+  <p style="margin-left:36px; margin-top:4px;">Click <strong>"Aug 2025 &mdash; Site C"</strong> in the Captures panel. Double-click it (or right-click &rarr; "Fly to capture") to fly to the area.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span>
+  <span class="step-title">Jump to Site E Grove</span>
+  <p style="margin-left:36px; margin-top:4px;">Type these coordinates into the search box and press Enter:</p>
+  <div class="coord-box" style="margin-left:36px;">&lt;lat&gt;, &lt;lng&gt;</div>
+  <p style="margin-left:36px; margin-top:4px;">The map flies to the heart of Site E Grove.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span>
+  <span class="step-title">Filter for dead mature trees</span>
+  <p style="margin-left:36px; margin-top:4px;">Set the following filters:</p>
+  <div class="filter-example" style="margin-left:36px;">
+    <div class="filter-row"><span class="fname">Color By</span> <span class="fval">Health</span></div>
+    <div class="filter-row"><span class="fname">p_seqmat &ge;</span> <span class="fval">0.30</span></div>
+    <div class="filter-row"><span class="fname">p_dead &ge;</span> <span class="fval">0.30</span></div>
+  </div>
+  <p style="margin-left:36px; margin-top:4px;">Red polygons (<span style="color:#e74c3c; font-weight:700;">dead</span>) will appear over tree crowns the model identifies as dead mature trees. Zoom in to see individual detections.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span>
+  <span class="step-title">Switch to Site D Grove</span>
+  <p style="margin-left:36px; margin-top:4px;">Enter Site D Grove coordinates:</p>
+  <div class="coord-box" style="margin-left:36px;">&lt;lat&gt;, &lt;lng&gt;</div>
+  <p style="margin-left:36px; margin-top:4px;">The same filters stay applied. Compare the density and pattern of dead trees between the two groves.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">5</span>
+  <span class="step-title">Check top-down threat</span>
+  <p style="margin-left:36px; margin-top:4px;">Reset <code>p_dead</code> to 0, then set <code>p_topdownt &ge; 0.30</code>. Yellow polygons (<span style="color:#f1c40f; font-weight:700;">top-down threat</span>) show trees with possible crown dieback &mdash; early indicators of decline.</p>
+</div>
+
+<div class="step">
+  <span class="step-num">6</span>
+  <span class="step-title">Inspect individual trees</span>
+  <p style="margin-left:36px; margin-top:4px;">Click any polygon to see its full stats. Copy the center coordinates for field verification or reporting.</p>
+</div>
+</div>
+
+<!-- ================================================ -->
+<h2 id="tips">6. Tips &amp; Reference</h2>
+
+<h3>Rendering</h3>
+<ul>
+  <li><strong>Capture names reflect the predominant grove</strong>, but most captures cover additional groves too. Hover over the <span class="info-badge-demo">i</span> badge on each capture button to see the full list of groves covered.</li>
+  <li>Detection polygons may <strong>not all render when zoomed out</strong> &mdash; this is normal for vector tile rendering. Zoom in and pan around to see all detections in an area.</li>
+  <li>Lower the <strong>raster opacity</strong> to make detection polygons more visible against the imagery.</li>
+  <li><strong>Hover</strong> over any polygon to highlight it with a white outline, dimming the others.</li>
+</ul>
+
+<h3>Filters</h3>
+<ul>
+  <li>All probability filters are <strong>AND</strong> conditions. Setting multiple health filters simultaneously (e.g., p_dead + p_topdownt) will show very few results. Filter <strong>one condition at a time</strong>.</li>
+  <li><strong>Polygon color reflects the top prediction, not your filter.</strong> If you filter by <code>p_topdownt &ge; 0.3</code>, you may still see <span style="color:#e74c3c; font-weight:700;">red</span> (dead) polygons &mdash; this means the tree passed your filter (p_topdownt &ge; 0.3) but its highest health prediction is actually "dead" (e.g., p_dead=0.4, p_topdownt=0.3). Click the polygon to see the full probability breakdown.</li>
+  <li><strong>Detection Confidence</strong> (Score) is best kept around <strong>0.50</strong>. This balances recall (finding trees) vs. precision (avoiding false positives).</li>
+  <li><strong>Bbox Width/Height</strong> correspond to canopy dimensions in meters. Useful for isolating large old-growth trees (try Width &ge; 8&ndash;10m) or filtering out small understory detections.</li>
+</ul>
+
+<h3>Capture coverage</h3>
+<table style="border-collapse:collapse; font-size:13px; margin:12px 0; width:100%;">
+  <tr style="background:#f3f4f6;">
+    <th style="padding:8px 12px; text-align:left; border-bottom:2px solid #d1d5db;">Capture</th>
+    <th style="padding:8px 12px; text-align:left; border-bottom:2px solid #d1d5db;">Groves Covered</th>
+  </tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site F East</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Narrow sliver east of Site F Grove</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site G North</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Strip north of Site G Grove</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site F</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site F Grove</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site B</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site B, Site H &amp; Site I Groves</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site C</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site D, Site E &amp; Site J Groves</td></tr>
+  <tr><td style="padding:6px 12px;">Site A</td><td style="padding:6px 12px;">Site A, Site K &amp; Site L Groves</td></tr>
+</table>
+
+<h3>Quick reference coordinates</h3>
+<p style="font-size:13px; color:#555;">Coordinates are specific to each deployment and are not listed here. Use the <strong>Groves</strong> picker in the sidebar to jump to a grove, or read the values for your instance from <code>data/groves.geojson</code>.</p>
+<table style="border-collapse:collapse; font-size:13px; margin:12px 0;">
+  <tr style="background:#f3f4f6;">
+    <th style="padding:8px 12px; text-align:left; border-bottom:2px solid #d1d5db;">Location</th>
+    <th style="padding:8px 12px; text-align:left; border-bottom:2px solid #d1d5db;">Coordinates</th>
+    <th style="padding:8px 12px; text-align:left; border-bottom:2px solid #d1d5db;">Capture</th>
+  </tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site E Grove</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb; font-family:monospace;">&lt;lat&gt;, &lt;lng&gt;</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site C</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site D Grove</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb; font-family:monospace;">&lt;lat&gt;, &lt;lng&gt;</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site C</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site A (center)</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb; font-family:monospace;">&lt;lat&gt;, &lt;lng&gt;</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site A</td></tr>
+  <tr><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site B Grove</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb; font-family:monospace;">&lt;lat&gt;, &lt;lng&gt;</td><td style="padding:6px 12px; border-bottom:1px solid #e5e7eb;">Site B</td></tr>
+  <tr><td style="padding:6px 12px;">Site F Grove</td><td style="padding:6px 12px; font-family:monospace;">&lt;lat&gt;, &lt;lng&gt;</td><td style="padding:6px 12px;">Site F</td></tr>
+</table>
+
+<hr style="margin-top:40px; border:none; border-top:1px solid #e5e7eb;" />
+<p style="color:#9ca3af; font-size:12px; margin-top:16px;">Scout Tree &bull; 0.3m satellite imagery &bull; RT-DETR-L detection model</p>
+
+</body>
+</html>

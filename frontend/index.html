@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scout Tree</title>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/pmtiles@4.4.0/dist/pmtiles.js"></script>
+<script src="config.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; }
+
+  #controls {
+    position: absolute; top: 10px; left: 10px; z-index: 10;
+    background: rgba(255,255,255,0.95); border-radius: 8px;
+    padding: 14px; width: 280px; max-height: calc(100vh - 20px);
+    overflow-y: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    font-size: 13px;
+  }
+  #controls h2 { font-size: 15px; margin-bottom: 10px; }
+  .section { margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+  .section:last-child { border-bottom: none; margin-bottom: 0; }
+  .section-title { font-weight: 600; margin-bottom: 6px; font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  label { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer; }
+  input[type="range"] { flex: 1; }
+  .slider-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .slider-row .label { min-width: 70px; font-size: 12px; }
+  .slider-row .value { min-width: 32px; text-align: right; font-size: 12px; font-weight: 600; }
+
+  .color-swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+
+  .radio-group { display: flex; gap: 4px; margin-bottom: 8px; }
+  .radio-group button {
+    flex: 1; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px;
+    background: #fff; cursor: pointer; font-size: 12px; transition: all 0.15s;
+  }
+  .radio-group button.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .radio-group button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #capture-date button { position: relative; }
+  #capture-date button .info-badge {
+    position: absolute; top: -4px; left: -4px;
+    width: 13px; height: 13px; border-radius: 50%;
+    background: #6b7280; color: #fff; font-size: 8px;
+    line-height: 13px; text-align: center; font-weight: 700;
+    font-style: italic; font-family: Georgia, serif;
+    pointer-events: none;
+  }
+  #capture-date button.active .info-badge { background: #1d4ed8; }
+
+  #source-warning {
+    display: none; margin-top: 6px; padding: 6px 8px;
+    background: #fef3c7; border: 1px solid #f59e0b; border-radius: 4px;
+    font-size: 11px; line-height: 1.4; color: #92400e;
+  }
+  #source-warning .warning-title { font-weight: 700; margin-bottom: 2px; }
+  #capture-date button.display-source { border-left: 3px solid #f59e0b; }
+
+  #toggle-btn {
+    position: absolute; top: 10px; left: 300px; z-index: 10;
+    background: rgba(255,255,255,0.95); border: none; border-radius: 8px;
+    padding: 8px 12px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    font-size: 18px; display: none;
+  }
+
+  #guide-btn {
+    background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 4px;
+    padding: 3px 8px; cursor: pointer; font-size: 11px; font-family: inherit;
+    color: #374151; text-decoration: none; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  #guide-btn:hover { background: #e0e7ff; color: #2563eb; border-color: #93a3f8; }
+
+  #coord-search {
+    width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px;
+    font-size: 12px; font-family: inherit; outline: none;
+  }
+  #coord-search:focus { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37,99,235,0.15); }
+  #coord-search::placeholder { color: #aaa; }
+
+  .search-marker {
+    width: 16px; height: 16px; background: #e53e3e; border: 2px solid #fff;
+    border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+  }
+
+  .pinned-marker {
+    width: 14px; height: 14px; background: #e53e3e; border: 2px solid #fff;
+    border-radius: 50%; box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    cursor: pointer;
+  }
+
+  #context-menu {
+    display: none; position: fixed; z-index: 1000;
+    background: #fff; border-radius: 6px; padding: 4px 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.25); min-width: 160px;
+    font-size: 13px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  #context-menu .ctx-item {
+    padding: 7px 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  }
+  #context-menu .ctx-item:hover { background: #f0f4ff; }
+  .ctx-sep { height: 1px; background: #e5e5e5; margin: 3px 0; }
+
+  #history-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.82); align-items: center; justify-content: center;
+    flex-direction: column;
+  }
+  #history-overlay.visible { display: flex; }
+  #history-close {
+    position: absolute; top: 14px; right: 22px;
+    background: none; border: none; color: #fff; font-size: 28px;
+    cursor: pointer; opacity: 0.7; transition: opacity 0.15s;
+  }
+  #history-close:hover { opacity: 1; }
+  #history-title { color: #fff; font-size: 14px; margin-bottom: 12px; font-weight: 600; letter-spacing: 0.3px; }
+  #history-tiles { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .history-tile { text-align: center; }
+  .history-tile .tile-label { color: #ccc; font-size: 12px; margin-bottom: 6px; font-weight: 600; }
+  .history-tile .mini-map { width: 340px; height: 340px; border-radius: 6px; border: 2px solid rgba(255,255,255,0.15); }
+
+  .maplibregl-popup-content { max-width: 300px; font-size: 12px; }
+  .popup-table { width: 100%; border-collapse: collapse; }
+  .popup-table td { padding: 2px 6px; border-bottom: 1px solid #eee; }
+  .popup-table td:first-child { font-weight: 600; color: #555; }
+  .popup-bar { height: 6px; border-radius: 3px; margin-top: 2px; }
+
+  .coord-cell { position: relative; padding-right: 22px !important; }
+  .copy-coord-btn {
+    position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; cursor: pointer; font-size: 16px; line-height: 1;
+    padding: 0; opacity: 0.4; transition: opacity 0.15s;
+    user-select: none; -webkit-user-select: none;
+  }
+  .copy-coord-btn:hover { opacity: 1; }
+
+  #grove-picker option.no-coverage { color: #999; }
+
+  #loading-spinner {
+    display: none; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 5; pointer-events: none;
+    justify-content: center; align-items: center;
+  }
+  #loading-spinner.visible { display: flex; }
+  #loading-spinner .spinner-ring {
+    width: 40px; height: 40px; border: 4px solid rgba(0,0,0,0.1);
+    border-top-color: #2563eb; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 600px) {
+    #controls { width: calc(100vw - 20px); max-height: 50vh; font-size: 12px; }
+    #controls.collapsed { display: none; }
+    #toggle-btn { display: block; }
+  }
+
+  .coll-section { margin-bottom: 12px; }
+  .coll-active-card {
+    background: #f0f4ff; border: 1px solid #93a3f8; border-radius: 6px;
+    padding: 8px 10px; margin-bottom: 8px;
+  }
+  .coll-active-card .coll-name { font-weight: 600; font-size: 13px; color: #1e40af; margin-bottom: 4px; }
+  .coll-active-card .coll-stats { font-size: 11px; color: #555; margin-bottom: 6px; }
+  .coll-actions { display: flex; gap: 4px; flex-wrap: wrap; }
+  .coll-actions button {
+    flex: 1; padding: 4px 6px; font-size: 11px; border: 1px solid #ccc;
+    border-radius: 4px; background: #fff; cursor: pointer; font-family: inherit;
+    transition: all 0.15s; min-width: 60px;
+  }
+  .coll-actions button:hover { background: #e0e7ff; border-color: #93a3f8; }
+  .coll-actions button.primary { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .coll-actions button.primary:hover { background: #1d4ed8; }
+  .coll-actions button.danger { color: #dc2626; }
+  .coll-actions button.danger:hover { background: #fef2f2; border-color: #dc2626; }
+  .coll-generate { margin-top: 6px; }
+  .coll-generate select, .coll-generate input {
+    width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid #ccc;
+    border-radius: 4px; font-family: inherit; margin-bottom: 4px;
+  }
+  .coll-list { margin-top: 6px; }
+  .coll-list-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 6px; cursor: pointer; border-radius: 4px; font-size: 12px;
+    transition: background 0.1s;
+  }
+  .coll-list-item:hover { background: #f0f4ff; }
+  .coll-list-item.active { background: #e0e7ff; font-weight: 600; }
+  .coll-list-item .coll-count { color: #888; font-size: 11px; }
+  .coll-user-badge {
+    font-size: 11px; color: #6b7280; float: right; font-weight: normal;
+  }
+
+  #gallery-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.88); flex-direction: column; align-items: center;
+  }
+  #gallery-overlay.visible { display: flex; }
+  #gallery-header {
+    width: 100%; max-width: 1200px; padding: 16px 20px 8px;
+    display: flex; align-items: center; justify-content: space-between; color: #fff;
+  }
+  #gallery-nav { display: flex; align-items: center; gap: 12px; }
+  #gallery-nav button {
+    background: rgba(255,255,255,0.15); border: none; color: #fff; padding: 6px 14px;
+    border-radius: 4px; cursor: pointer; font-size: 13px; transition: background 0.15s;
+  }
+  #gallery-nav button:hover { background: rgba(255,255,255,0.3); }
+  #gallery-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+  #gallery-counter { font-size: 14px; font-weight: 600; min-width: 120px; text-align: center; }
+  #gallery-close {
+    background: none; border: none; color: #fff; font-size: 28px;
+    cursor: pointer; opacity: 0.7; transition: opacity 0.15s;
+  }
+  #gallery-close:hover { opacity: 1; }
+  #gallery-subtitle { color: #ccc; font-size: 13px; text-align: center; margin-bottom: 10px; }
+  #gallery-tiles { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; padding: 0 20px; }
+  .gallery-tile { text-align: center; }
+  .gallery-tile .tile-label { color: #ccc; font-size: 12px; margin-bottom: 6px; font-weight: 600; }
+  .gallery-tile .tile-health { font-size: 11px; margin-top: 4px; padding: 2px 8px; border-radius: 10px; display: inline-block; }
+  .gallery-tile .mini-map { width: 340px; height: 340px; border-radius: 6px; border: 2px solid rgba(255,255,255,0.15); }
+  #gallery-controls {
+    width: 100%; max-width: 1200px; padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px; justify-content: center; flex-wrap: wrap;
+  }
+  #gallery-tag-input {
+    flex: 1; max-width: 300px; padding: 6px 10px; border-radius: 4px; border: 1px solid #555;
+    background: rgba(255,255,255,0.1); color: #fff; font-size: 13px; font-family: inherit;
+  }
+  #gallery-tag-input::placeholder { color: #888; }
+  #gallery-controls button {
+    padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer;
+    font-size: 13px; font-weight: 600; font-family: inherit; transition: all 0.15s;
+  }
+  .btn-keep { background: #2ecc71; color: #fff; }
+  .btn-keep:hover { background: #27ae60; }
+  .btn-dismiss { background: #e74c3c; color: #fff; }
+  .btn-dismiss:hover { background: #c0392b; }
+  .btn-skip { background: rgba(255,255,255,0.15); color: #fff; }
+  .btn-skip:hover { background: rgba(255,255,255,0.3); }
+  .btn-flyto { background: rgba(255,255,255,0.15); color: #fff; }
+  .btn-flyto:hover { background: rgba(255,255,255,0.3); }
+  #gallery-shortcuts { color: #666; font-size: 11px; text-align: center; padding-bottom: 10px; }
+  .coll-progress {
+    width: 100%; height: 4px; background: #e5e7eb; border-radius: 2px;
+    margin: 6px 0; overflow: hidden;
+  }
+  .coll-progress-bar {
+    height: 100%; background: #2563eb; border-radius: 2px; transition: width 0.3s;
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="loading-spinner"><div class="spinner-ring"></div></div>
+<div id="context-menu"></div>
+<div id="history-overlay">
+  <button id="history-close" title="Close">&times;</button>
+  <div id="history-title"></div>
+  <div id="history-tiles"></div>
+</div>
+<div id="gallery-overlay">
+  <div id="gallery-header">
+    <div id="gallery-nav">
+      <button id="gallery-prev" title="Previous (&#8592;)">&#8592; Prev</button>
+      <span id="gallery-counter">Tree 1 of 0</span>
+      <button id="gallery-next" title="Next (&#8594;)">Next &#8594;</button>
+    </div>
+    <button id="gallery-close" title="Close (Esc)">&times;</button>
+  </div>
+  <div id="gallery-subtitle"></div>
+  <div id="gallery-tiles"></div>
+  <div id="gallery-controls">
+    <input type="text" id="gallery-tag-input" placeholder="Tag / note (optional)" />
+    <button class="btn-keep" id="gallery-keep" title="Keep (Enter)">&#10003; Keep</button>
+    <button class="btn-dismiss" id="gallery-dismiss" title="Dismiss (D)">&#10007; Dismiss</button>
+    <button class="btn-skip" id="gallery-skip" title="Skip (S)">&#8594; Skip</button>
+    <button class="btn-flyto" id="gallery-flyto" title="Fly to Map (F)">&#127758; Fly to Map</button>
+  </div>
+  <div id="gallery-shortcuts">Enter=Keep · D=Dismiss · S=Skip · F=Fly · &#8592;&#8594;=Navigate · Esc=Close</div>
+</div>
+<button id="toggle-btn" onclick="document.getElementById('controls').classList.toggle('collapsed')">&#9776;</button>
+
+<div id="controls">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+    <h2 style="margin:0;">Scout Tree</h2>
+    <a id="guide-btn" href="frontend/guide.html" target="_blank">&#128218; Guide</a>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Go to Coordinates</div>
+    <input type="text" id="coord-search" placeholder="lat, lng" />
+  </div>
+
+  <div class="section">
+    <div class="section-title">Color By</div>
+    <div class="radio-group" id="color-mode">
+      <button data-mode="species">Species</button>
+      <button class="active" data-mode="health">Health</button>
+    </div>
+    <div id="legend-species" style="display:none">
+      <label><span class="color-swatch" style="background:#1a5e1a"></span> <span data-species-label="seqmat"></span></label>
+      <label><span class="color-swatch" style="background:#7dc67d"></span> <span data-species-label="seqsp"></span></label>
+      <label><span class="color-swatch" style="background:#999"></span> <span data-species-label="tree"></span></label>
+    </div>
+    <div id="legend-health">
+      <label><span class="color-swatch" style="background:#2ecc71"></span> Normal</label>
+      <label><span class="color-swatch" style="background:#e74c3c"></span> Dead</label>
+      <label><span class="color-swatch" style="background:#e67e22"></span> Fire Damage</label>
+      <label><span class="color-swatch" style="background:#f1c40f"></span> Top-down Threat</label>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Detection Confidence</div>
+    <div class="slider-row">
+      <span class="label">Score &ge;</span>
+      <input type="range" id="filter-score" min="0.25" max="1" step="0.05" value="0.50" />
+      <span class="value" id="val-score">0.50</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Species Probabilities</div>
+    <div class="slider-row">
+      <span class="label">p_seqmat &ge;</span>
+      <input type="range" id="filter-p_seqmat" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_seqmat">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">p_seqsp &ge;</span>
+      <input type="range" id="filter-p_seqsp" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_seqsp">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">p_tree &ge;</span>
+      <input type="range" id="filter-p_tree" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_tree">0</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Health Probabilities</div>
+    <div class="slider-row">
+      <span class="label">p_dead &ge;</span>
+      <input type="range" id="filter-p_dead" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_dead">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">p_firedama &ge;</span>
+      <input type="range" id="filter-p_firedama" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_firedama">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">p_normal &ge;</span>
+      <input type="range" id="filter-p_normal" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_normal">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">p_topdownt &ge;</span>
+      <input type="range" id="filter-p_topdownt" min="0" max="1" step="0.05" value="0" />
+      <span class="value" id="val-p_topdownt">0</span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Bbox Size (meters)</div>
+    <div class="slider-row">
+      <span class="label">Width &ge;</span>
+      <input type="range" id="filter-bbox_w" min="0" max="40" step="1" value="0" />
+      <span class="value" id="val-bbox_w">0</span>
+    </div>
+    <div class="slider-row">
+      <span class="label">Height &ge;</span>
+      <input type="range" id="filter-bbox_h" min="0" max="65" step="1" value="0" />
+      <span class="value" id="val-bbox_h">0</span>
+    </div>
+  </div>
+
+  <div class="section" id="groves-section">
+    <div class="section-title">Groves</div>
+    <div style="font-size:10px; color:#999; margin-bottom:4px;">click to jump · captures covering grove are highlighted</div>
+    <select id="grove-picker" style="width:100%; padding:4px; font-size:12px; border:1px solid #ccc; border-radius:4px;">
+      <option value="">— Select a grove —</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Captures</div>
+    <div style="font-size:10px; color:#999; margin-bottom:4px;">click to jump to capture</div>
+    <div class="radio-group" id="capture-date" style="flex-wrap:wrap"></div>
+    <div id="source-warning">
+      <div class="warning-title">&#9888; Display-preprocessed imagery</div>
+      Health and species classifications may be less reliable for this capture due to Airbus DISPLAY tone curve.
+      Fire damage tends to be over-predicted. Where available, compare with reflectance captures.
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Detection Model</div>
+    <div class="radio-group" id="detection-model" style="flex-wrap:wrap"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Raster Layer</div>
+    <div class="radio-group" id="raster-mode">
+      <button class="active" data-layer="rgb">RGB</button>
+      <button data-layer="ned">NED</button>
+      <button data-layer="ndvi">NDVI</button>
+    </div>
+    <div class="slider-row">
+      <span class="label">Opacity</span>
+      <input type="range" id="raster-opacity" min="0" max="1" step="0.05" value="1" />
+      <span class="value" id="val-raster-opacity">1</span>
+    </div>
+  </div>
+
+  <div class="section" id="collections-section">
+    <div class="section-title">Collections <span class="coll-user-badge" id="coll-user"></span></div>
+
+    <div id="coll-active" style="display:none">
+      <div class="coll-active-card">
+        <div class="coll-name" id="coll-active-name"></div>
+        <div class="coll-stats" id="coll-active-stats"></div>
+        <div class="coll-progress"><div class="coll-progress-bar" id="coll-progress-bar"></div></div>
+        <div class="coll-actions">
+          <button class="primary" id="coll-resume-btn">&#9654; Review</button>
+          <button id="coll-export-csv-btn">CSV</button>
+          <button id="coll-export-full-btn">Export</button>
+          <button class="danger" id="coll-delete-btn">&#128465;</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="coll-generate">
+      <div style="font-size:11px; color:#555; margin-bottom:4px; font-weight:600;">Generate New</div>
+      <select id="coll-preset">
+        <option value="">— Use current filters —</option>
+        <option value="dead_seqmat"></option>
+        <option value="tdt_seqmat"></option>
+        <option value="tdt_to_dead">TDT &#8594; Dead (temporal)</option>
+        <option value="normal_to_tdt">Normal &#8594; TDT (temporal)</option>
+        <option value="fire_seqmat"></option>
+      </select>
+      <input type="text" id="coll-name-input" placeholder="Collection name (auto-generated)" />
+      <div class="coll-actions">
+        <button class="primary" id="coll-generate-btn" style="flex:1">Generate</button>
+      </div>
+    </div>
+
+    <div class="coll-list" id="coll-list">
+      <div style="font-size:11px; color:#555; margin-bottom:4px; font-weight:600;">My Collections</div>
+      <div id="coll-list-items" style="font-size:12px; color:#888;">No collections yet</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Register PMTiles protocol
+const protocol = new pmtiles.Protocol();
+maplibregl.addProtocol("pmtiles", protocol.tile);
+
+// --- Capture registry (loaded from manifest) ---
+let CAPTURES = {};
+let activeCapture = null;
+let activeDetectionTag = null;
+
+// Color schemes
+const SPECIES_COLORS = [
+  "match", ["get", "pred_sp"],
+  "seqmat", "#1a5e1a",
+  "seqsp", "#7dc67d",
+  "tree", "#999999",
+  "#ccc"
+];
+
+const HEALTH_COLORS = [
+  "match", ["get", "pred_hl"],
+  "normal", "#2ecc71",
+  "dead", "#e74c3c",
+  "firedamage", "#e67e22",
+  "topdownthreat", "#f1c40f",
+  "#ccc"
+];
+
+// Filter attribute IDs
+const FILTER_ATTRS = [
+  'score', 'p_seqmat', 'p_seqsp', 'p_tree',
+  'p_dead', 'p_firedama', 'p_normal', 'p_topdownt',
+  'bbox_w', 'bbox_h'
+];
+
+let colorMode = 'health';
+const captureBounds = {};  // populated on init, used for flyTo on capture switch
+
+// --- Collections state ---
+let currentUser = null;
+let collections = [];
+let activeCollection = null;
+let galleryQueue = [];
+let galleryIndex = 0;
+let galleryMiniMaps = [];
+let saveTimeout = null;
+let GROVES = {};
+let activeGrove = null;
+
+// Display names for the model's species classes. The keys are fixed by the
+// PMTiles schema; only the labels are deployment-specific, so they come from
+// config.js and default to generic terms.
+const SPECIES_LABELS = {
+  seqmat: 'Mature', seqsp: 'Sapling', tree: 'Other',
+  ...(VIEWER_CONFIG.speciesLabels || {}),
+};
+document.querySelectorAll('[data-species-label]').forEach((el) => {
+  el.textContent = SPECIES_LABELS[el.dataset.speciesLabel] || el.dataset.speciesLabel;
+});
+
+// --- API client ---
+async function apiGet(path) {
+  const r = await fetch(`/api${path}`, { credentials: 'same-origin' });
+  if (!r.ok && r.status !== 404) console.error(`API GET ${path}:`, r.status);
+  return r;
+}
+async function apiPost(path, body) {
+  return fetch(`/api${path}`, {
+    method: 'POST', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+async function apiPut(path, body) {
+  return fetch(`/api${path}`, {
+    method: 'PUT', credentials: 'same-origin',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+async function apiDelete(path) {
+  return fetch(`/api${path}`, { method: 'DELETE', credentials: 'same-origin' });
+}
+
+// Initialize map
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    sources: {},
+    layers: [{
+      id: 'background',
+      type: 'background',
+      paint: { 'background-color': '#111' }
+    }]
+  },
+  center: VIEWER_CONFIG.mapCenter || [0, 0],
+  zoom: VIEWER_CONFIG.mapCenter ? (VIEWER_CONFIG.mapZoom ?? 15) : 1,
+  maxZoom: 20
+});
+
+map.addControl(new maplibregl.NavigationControl(), 'bottom-right');
+
+function rebuildModelPicker(capId) {
+  const pickerEl = document.getElementById('detection-model');
+  pickerEl.innerHTML = '';
+  const dets = CAPTURES[capId]?.detections || [];
+  activeDetectionTag = (dets.find(d => d.default) || dets[0])?.tag || null;
+  for (const det of dets) {
+    const btn = document.createElement('button');
+    btn.dataset.detTag = det.tag;
+    btn.textContent = det.tag;
+    if (det.tag === activeDetectionTag) btn.classList.add('active');
+    pickerEl.appendChild(btn);
+  }
+}
+
+map.on('load', async () => {
+  // Load capture manifest
+  const manifest = await fetch('data/captures.json?_=' + Date.now()).then(r => r.json());
+  const entries = Object.entries(manifest.captures)
+    .filter(([, c]) => c.visible && c.pmtiles?.rgb)
+    .sort((a, b) => (b[1].capture_date || '').localeCompare(a[1].capture_date || '') || a[0].localeCompare(b[0]));
+  for (const [tag, cap] of entries) {
+    const dets = Array.isArray(cap.pmtiles.detections) ? cap.pmtiles.detections : [];
+    CAPTURES[tag] = {
+      label: cap.title,
+      rgb: cap.pmtiles.rgb,
+      ned: cap.pmtiles.ned,
+      ndvi: cap.pmtiles.ndvi,
+      detections: dets,
+      bounds: cap.bounds?.wgs84 || null,
+      tileBounds: cap.bounds?.tile_wgs84 || cap.bounds?.wgs84 || null,
+      grovesInfo: cap.groves_info || null,
+      sourceType: cap.source_type || 'unknown',
+    };
+  }
+
+  // Set initial active capture — prefer aug25_2635 (reflectance)
+  const captureIds = Object.keys(CAPTURES);
+  if (captureIds.length === 0) {
+    console.error('No visible captures found in manifest');
+    return;
+  }
+  activeCapture = captureIds.includes('aug25_2635') ? 'aug25_2635' : captureIds[0];
+  const initDets = CAPTURES[activeCapture].detections;
+  activeDetectionTag = (initDets.find(d => d.default) || initDets[0])?.tag || null;
+
+  // Populate capture picker buttons
+  const pickerEl = document.getElementById('capture-date');
+  for (const [capId, cap] of Object.entries(CAPTURES)) {
+    const btn = document.createElement('button');
+    btn.dataset.capture = capId;
+    btn.textContent = cap.label;
+    if (cap.grovesInfo) {
+      btn.title = cap.grovesInfo;
+      const badge = document.createElement('span');
+      badge.className = 'info-badge';
+      badge.textContent = 'i';
+      btn.appendChild(badge);
+    }
+    if (cap.sourceType === 'display') btn.classList.add('display-source');
+    if (capId === activeCapture) btn.classList.add('active');
+    pickerEl.appendChild(btn);
+  }
+
+  // Use pre-computed WGS84 bounds from manifest
+  const srcBounds = CAPTURES[activeCapture].bounds;
+
+  // Show warning if initial capture is display-preprocessed
+  if (CAPTURES[activeCapture].sourceType === 'display') {
+    document.getElementById('source-warning').style.display = 'block';
+  }
+
+  rebuildModelPicker(activeCapture);
+
+  // Add raster sources and layers for every capture
+  const LAYER_TYPES = ['rgb', 'ned', 'ndvi'];
+  for (const [capId, cap] of Object.entries(CAPTURES)) {
+    captureBounds[capId] = cap.bounds;
+
+    for (const type of LAYER_TYPES) {
+      const srcId = `${capId}-${type}`;
+      const layerId = `${capId}-${type}-layer`;
+      const rasterOpts = {
+        type: 'raster',
+        url: `pmtiles://${cap[type]}`,
+        tileSize: 256,
+      };
+      if (cap.tileBounds) rasterOpts.bounds = cap.tileBounds;
+      map.addSource(srcId, rasterOpts);
+      const isVisible = capId === activeCapture && type === 'rgb';
+      map.addLayer({
+        id: layerId,
+        type: 'raster',
+        source: srcId,
+        paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 },
+        layout: { visibility: isVisible ? 'visible' : 'none' },
+      });
+    }
+  }
+
+  // ── Grove data ──
+
+  const grovesGeoJson = await fetch('data/groves.geojson?_=' + Date.now()).then(r => r.json());
+  for (const feature of grovesGeoJson.features) {
+    const p = feature.properties;
+    const bbox = p.bbox;
+    const covering = Object.entries(captureBounds).filter(([, b]) =>
+      b && bbox[0] <= b[2] && bbox[2] >= b[0] && bbox[1] <= b[3] && bbox[3] >= b[1]
+    ).map(([id]) => id);
+
+    GROVES[p.name] = {
+      name: p.name,
+      acres: p.acres || 0,
+      center: [p.center_lon, p.center_lat],
+      bbox: bbox,
+      captures: covering,
+      geometry: feature.geometry,
+    };
+  }
+
+  const grovePicker = document.getElementById('grove-picker');
+  for (const [name, grove] of Object.entries(GROVES).sort((a, b) => a[0].localeCompare(b[0]))) {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = `${name} (${grove.captures.length} captures, ${grove.acres.toFixed(0)} ac)`;
+    if (grove.captures.length === 0) opt.className = 'no-coverage';
+    grovePicker.appendChild(opt);
+  }
+
+  // Add per-capture vector sources and detection layers
+  const initColors = colorMode === 'species' ? SPECIES_COLORS : HEALTH_COLORS;
+  for (const [capId, cap] of Object.entries(CAPTURES)) {
+    for (const det of cap.detections) {
+      const srcId = `${capId}-${det.tag}-detections`;
+      map.addSource(srcId, {
+        type: 'vector',
+        url: `pmtiles://${det.path}`,
+      });
+      const isActive = capId === activeCapture && det.tag === activeDetectionTag;
+      map.addLayer({
+        id: `${capId}-${det.tag}-detections-fill`,
+        type: 'fill',
+        source: srcId,
+        'source-layer': 'detections',
+        paint: { 'fill-color': initColors, 'fill-opacity': 0.5 },
+        layout: { visibility: isActive ? 'visible' : 'none' },
+      });
+      map.addLayer({
+        id: `${capId}-${det.tag}-detections-outline`,
+        type: 'line',
+        source: srcId,
+        'source-layer': 'detections',
+        paint: { 'line-color': initColors, 'line-width': 1, 'line-opacity': 0.8 },
+        layout: { visibility: isActive ? 'visible' : 'none' },
+      });
+    }
+  }
+
+  // --- Tile-boundary fragment merging ---
+  // Tippecanoe clips polygons at tile boundaries, splitting one detection into
+  // 2-4 fragments. These helpers find all fragments of the same detection and
+  // merge their geometries for correct hover highlight and centroid computation.
+  function detFingerprint(p) {
+    return `${p.score}|${p.bbox_w}|${p.bbox_h}|${p.p_seqmat}|${p.p_dead}`;
+  }
+
+  function findAllFragments(feature) {
+    const fp = detFingerprint(feature.properties);
+    const geom = feature.geometry;
+    if (!geom || !geom.coordinates) return [feature];
+
+    const pts = geom.type === 'Polygon' ? geom.coordinates[0]
+      : geom.type === 'MultiPolygon' ? geom.coordinates.flat(2) : [];
+    if (pts.length === 0) return [feature];
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const pt of pts) {
+      minX = Math.min(minX, pt[0]); minY = Math.min(minY, pt[1]);
+      maxX = Math.max(maxX, pt[0]); maxY = Math.max(maxY, pt[1]);
+    }
+    const dx = (maxX - minX) || 0.0005;
+    const dy = (maxY - minY) || 0.0005;
+    const sw = map.project([minX - dx, minY - dy]);
+    const ne = map.project([maxX + dx, maxY + dy]);
+
+    const layer = `${activeCapture}-${activeDetectionTag}-detections-fill`;
+    if (!map.getLayer(layer)) return [feature];
+    const nearby = map.queryRenderedFeatures([sw, ne], { layers: [layer] });
+    return nearby.filter(f => detFingerprint(f.properties) === fp);
+  }
+
+  function mergedCentroid(fragments) {
+    let cLon = 0, cLat = 0, nPts = 0;
+    for (const f of fragments) {
+      const coords = f.geometry?.coordinates;
+      if (!coords) continue;
+      const ring = coords[0] || coords;
+      for (const pt of ring) { cLon += pt[0]; cLat += pt[1]; nPts++; }
+    }
+    if (nPts > 0) { cLon /= nPts; cLat /= nPts; }
+    return { lon: cLon, lat: cLat };
+  }
+
+  let lastHoverFingerprint = null;
+
+  // Hover highlight source + layers (uses a separate GeoJSON source updated on mousemove)
+  map.addSource('hover-feature', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] }
+  });
+  map.addLayer({
+    id: 'hover-fill',
+    type: 'fill',
+    source: 'hover-feature',
+    paint: { 'fill-opacity': 0 }
+  });
+  map.addLayer({
+    id: 'hover-outline',
+    type: 'line',
+    source: 'hover-feature',
+    paint: { 'line-color': '#ffffff', 'line-width': 3, 'line-opacity': 1 }
+  });
+
+  // Grove boundary layers
+  map.addSource('grove-boundary', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  });
+  map.addLayer({
+    id: 'grove-boundary-outline',
+    type: 'line',
+    source: 'grove-boundary',
+    paint: { 'line-color': '#ef4444', 'line-width': 2.5, 'line-opacity': 0.9 },
+  });
+  map.addLayer({
+    id: 'grove-boundary-fill',
+    type: 'fill',
+    source: 'grove-boundary',
+    paint: { 'fill-color': '#ef4444', 'fill-opacity': 0.05 },
+  });
+
+  function selectGrove(groveName) {
+    if (!groveName) {
+      activeGrove = null;
+      map.getSource('grove-boundary').setData({ type: 'FeatureCollection', features: [] });
+      document.querySelectorAll('#capture-date button').forEach(b => {
+        b.style.opacity = '1';
+        b.disabled = false;
+      });
+      return;
+    }
+
+    const grove = GROVES[groveName];
+    if (!grove) return;
+    activeGrove = groveName;
+
+    map.getSource('grove-boundary').setData({
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', geometry: grove.geometry, properties: { name: groveName } }],
+    });
+
+    const b = grove.bbox;
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], {
+      padding: { top: 40, bottom: 40, right: 40, left: 320 },
+      duration: 1200,
+    });
+
+    document.querySelectorAll('#capture-date button').forEach(btn => {
+      const capId = btn.dataset.capture;
+      const covers = grove.captures.includes(capId);
+      btn.style.opacity = covers ? '1' : '0.3';
+      btn.disabled = !covers;
+    });
+
+    if (!grove.captures.includes(activeCapture) && grove.captures.length > 0) {
+      switchCapture(grove.captures[0], false);
+    }
+  }
+
+  grovePicker.addEventListener('change', (e) => selectGrove(e.target.value));
+
+  // Default grove comes from config.js; blank in the repo, set at deploy.
+  const homeGrove = VIEWER_CONFIG.homeGrove;
+  if (homeGrove && GROVES[homeGrove]) {
+    grovePicker.value = homeGrove;
+    selectGrove(homeGrove);
+  } else {
+    const fitPadding = { top: 20, bottom: 20, right: 20, left: 310 };
+    map.fitBounds([[srcBounds[0], srcBounds[1]], [srcBounds[2], srcBounds[3]]], { padding: fitPadding });
+  }
+
+  // Click handler for popups — delegate from all capture fill layers
+  function onDetectionClick(e) {
+    if (!e.features || e.features.length === 0) return;
+    const f = e.features[0];
+    const p = f.properties;
+
+    const probBar = (val, color) => {
+      const pct = (val * 100).toFixed(0);
+      return `<div style="display:flex;align-items:center;gap:4px">
+        <div class="popup-bar" style="width:${pct}%;max-width:100px;background:${color}">&nbsp;</div>
+        <span>${(val).toFixed(3)}</span>
+      </div>`;
+    };
+
+    // Compute polygon centroid from all fragments (handles tile-boundary splits)
+    const fragments = findAllFragments(f);
+    const { lon: cLon, lat: cLat } = mergedCentroid(fragments);
+
+    const html = `
+      <table class="popup-table">
+        <tr><td>Score</td><td>${p.score?.toFixed(3) ?? 'N/A'}</td></tr>
+        <tr><td>Center</td><td class="coord-cell">${cLat.toFixed(6)}, ${cLon.toFixed(6)}<button class="copy-coord-btn" title="Copy coordinates">&#x2398;</button></td></tr>
+        <tr><td colspan="2" style="font-weight:600;padding-top:6px">Species</td></tr>
+        <tr><td>Predicted</td><td><b>${p.pred_sp}</b></td></tr>
+        <tr><td>p_seqmat</td><td>${probBar(p.p_seqmat, '#1a5e1a')}</td></tr>
+        <tr><td>p_seqsp</td><td>${probBar(p.p_seqsp, '#7dc67d')}</td></tr>
+        <tr><td>p_tree</td><td>${probBar(p.p_tree, '#999')}</td></tr>
+        <tr><td colspan="2" style="font-weight:600;padding-top:6px">Health</td></tr>
+        <tr><td>Predicted</td><td><b>${p.pred_hl}</b></td></tr>
+        <tr><td>p_dead</td><td>${probBar(p.p_dead, '#e74c3c')}</td></tr>
+        <tr><td>p_firedama</td><td>${probBar(p.p_firedama, '#e67e22')}</td></tr>
+        <tr><td>p_normal</td><td>${probBar(p.p_normal, '#2ecc71')}</td></tr>
+        <tr><td>p_topdownt</td><td>${probBar(p.p_topdownt, '#f1c40f')}</td></tr>
+        <tr><td colspan="2" style="font-weight:600;padding-top:6px">Size</td></tr>
+        <tr><td>Width</td><td>${p.bbox_w?.toFixed(1) ?? 'N/A'} m</td></tr>
+        <tr><td>Height</td><td>${p.bbox_h?.toFixed(1) ?? 'N/A'} m</td></tr>
+      </table>`;
+
+    const popup = new maplibregl.Popup({ maxWidth: '320px' })
+      .setLngLat(e.lngLat)
+      .setHTML(html)
+      .addTo(map);
+
+    const coordStr = `${cLat.toFixed(6)}, ${cLon.toFixed(6)}`;
+    const copyBtn = popup.getElement().querySelector('.copy-coord-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', (evt) => {
+        evt.stopPropagation();
+        const ta = document.createElement('textarea');
+        ta.value = coordStr;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        copyBtn.textContent = '\u2713';
+        setTimeout(() => { copyBtn.textContent = '\u2398'; }, 1000);
+      });
+    }
+  }
+
+  // Hover handlers — delegated from all capture fill layers
+  function onDetectionMouseMove(e) {
+    map.getCanvas().style.cursor = 'pointer';
+    if (e.features.length === 0) return;
+    const fp = detFingerprint(e.features[0].properties);
+    if (fp === lastHoverFingerprint) return;
+    lastHoverFingerprint = fp;
+    const fragments = findAllFragments(e.features[0]);
+    map.setPaintProperty(`${activeCapture}-${activeDetectionTag}-detections-fill`, 'fill-opacity', 0);
+    map.getSource('hover-feature').setData({
+      type: 'FeatureCollection',
+      features: fragments
+    });
+  }
+  function onDetectionMouseLeave() {
+    map.getCanvas().style.cursor = '';
+    lastHoverFingerprint = null;
+    map.setPaintProperty(`${activeCapture}-${activeDetectionTag}-detections-fill`, 'fill-opacity', 0.5);
+    map.getSource('hover-feature').setData({
+      type: 'FeatureCollection',
+      features: []
+    });
+  }
+
+  // Bind click/hover to all capture fill layers
+  for (const capId of Object.keys(CAPTURES)) {
+    for (const det of CAPTURES[capId].detections) {
+      const fillId = `${capId}-${det.tag}-detections-fill`;
+      map.on('click', fillId, onDetectionClick);
+      map.on('mousemove', fillId, onDetectionMouseMove);
+      map.on('mouseleave', fillId, onDetectionMouseLeave);
+    }
+  }
+
+  // Apply default filters now that layers exist
+  applyFilters();
+});
+
+// --- Filter logic ---
+function buildFilter() {
+  const conditions = ['all'];
+  for (const attr of FILTER_ATTRS) {
+    const el = document.getElementById(`filter-${attr}`);
+    const val = parseFloat(el.value);
+    if (val > 0) {
+      conditions.push(['>=', ['get', attr], val]);
+    }
+  }
+  return conditions.length > 1 ? conditions : null;
+}
+
+function applyFilters() {
+  const filter = buildFilter();
+  for (const capId of Object.keys(CAPTURES)) {
+    for (const det of CAPTURES[capId].detections) {
+      map.setFilter(`${capId}-${det.tag}-detections-fill`, filter);
+      map.setFilter(`${capId}-${det.tag}-detections-outline`, filter);
+    }
+  }
+}
+
+// Bind slider events
+for (const attr of FILTER_ATTRS) {
+  const el = document.getElementById(`filter-${attr}`);
+  const valEl = document.getElementById(`val-${attr}`);
+  el.addEventListener('input', () => {
+    valEl.textContent = el.value;
+    applyFilters();
+  });
+}
+
+// --- Color mode ---
+document.getElementById('color-mode').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  colorMode = btn.dataset.mode;
+  document.querySelectorAll('#color-mode button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const colors = colorMode === 'species' ? SPECIES_COLORS : HEALTH_COLORS;
+  for (const capId of Object.keys(CAPTURES)) {
+    for (const det of CAPTURES[capId].detections) {
+      map.setPaintProperty(`${capId}-${det.tag}-detections-fill`, 'fill-color', colors);
+      map.setPaintProperty(`${capId}-${det.tag}-detections-outline`, 'line-color', colors);
+    }
+  }
+
+  document.getElementById('legend-species').style.display = colorMode === 'species' ? '' : 'none';
+  document.getElementById('legend-health').style.display = colorMode === 'health' ? '' : 'none';
+});
+
+// --- Raster layer switching ---
+let activeRasterType = 'rgb';  // rgb | ned | ndvi
+
+const spinnerEl = document.getElementById('loading-spinner');
+let spinnerTimeout = null;
+
+function showSpinner() {
+  clearTimeout(spinnerTimeout);
+  spinnerTimeout = setTimeout(() => spinnerEl.classList.add('visible'), 80);
+}
+function hideSpinner() {
+  clearTimeout(spinnerTimeout);
+  spinnerEl.classList.remove('visible');
+}
+map.on('idle', hideSpinner);
+
+function updateLayerVisibility() {
+  showSpinner();
+  const opacity = parseFloat(document.getElementById('raster-opacity').value);
+  for (const capId of Object.keys(CAPTURES)) {
+    // Raster layers
+    for (const type of ['rgb', 'ned', 'ndvi']) {
+      const layerId = `${capId}-${type}-layer`;
+      const visible = capId === activeCapture && type === activeRasterType;
+      map.setLayoutProperty(layerId, 'visibility', visible ? 'visible' : 'none');
+      if (visible) {
+        map.setPaintProperty(layerId, 'raster-opacity', opacity);
+      }
+    }
+    // Detection layers
+    for (const det of (CAPTURES[capId].detections || [])) {
+      const isActive = capId === activeCapture && det.tag === activeDetectionTag;
+      map.setLayoutProperty(`${capId}-${det.tag}-detections-fill`, 'visibility', isActive ? 'visible' : 'none');
+      map.setLayoutProperty(`${capId}-${det.tag}-detections-outline`, 'visibility', isActive ? 'visible' : 'none');
+    }
+  }
+}
+
+document.getElementById('raster-mode').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.disabled) return;
+  activeRasterType = btn.dataset.layer;
+  document.querySelectorAll('#raster-mode button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateLayerVisibility();
+});
+
+// --- Capture switching ---
+function switchCapture(capId, flyTo) {
+  if (!CAPTURES[capId]) return;
+  activeCapture = capId;
+  rebuildModelPicker(capId);
+  document.querySelectorAll('#capture-date button').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.querySelector(`#capture-date button[data-capture="${capId}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+  const warning = document.getElementById('source-warning');
+  warning.style.display = CAPTURES[capId].sourceType === 'display' ? 'block' : 'none';
+  updateLayerVisibility();
+  if (flyTo && captureBounds[capId]) {
+    const b = captureBounds[capId];
+    map.fitBounds([[b[0], b[1]], [b[2], b[3]]], {
+      padding: { top: 20, bottom: 20, right: 20, left: 310 },
+      duration: 1200,
+    });
+  }
+}
+
+// Click: swap layers + fly to bounds
+document.getElementById('capture-date').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  switchCapture(btn.dataset.capture, true);
+});
+
+// Right-click on capture button: context menu with "Fly to capture"
+document.getElementById('capture-date').addEventListener('contextmenu', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  e.preventDefault();
+  const capId = btn.dataset.capture;
+  switchCapture(capId, false);
+
+  const menu = document.getElementById('context-menu');
+  menu.innerHTML = `<div class="ctx-item" id="ctx-fly-capture">&#128506; Fly to ${CAPTURES[capId].label}</div>`;
+  menu.style.left = e.clientX + 'px';
+  menu.style.top = e.clientY + 'px';
+  menu.style.display = 'block';
+
+  document.getElementById('ctx-fly-capture').addEventListener('click', () => {
+    menu.style.display = 'none';
+    if (captureBounds[capId]) {
+      const b = captureBounds[capId];
+      map.fitBounds([[b[0], b[1]], [b[2], b[3]]], {
+        padding: { top: 20, bottom: 20, right: 20, left: 310 },
+        duration: 1200,
+      });
+    }
+  }, { once: true });
+});
+
+// --- Detection model switching ---
+document.getElementById('detection-model').addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn || btn.dataset.detTag === activeDetectionTag) return;
+  activeDetectionTag = btn.dataset.detTag;
+  document.querySelectorAll('#detection-model button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateLayerVisibility();
+});
+
+// --- Raster opacity ---
+document.getElementById('raster-opacity').addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  document.getElementById('val-raster-opacity').textContent = val.toFixed(2);
+  const activeLayerId = `${activeCapture}-${activeRasterType}-layer`;
+  map.setPaintProperty(activeLayerId, 'raster-opacity', val);
+});
+
+// --- Coordinate search ---
+let searchMarker = null;
+
+function clearSearchMarker() {
+  if (searchMarker) {
+    searchMarker.remove();
+    searchMarker = null;
+  }
+}
+
+if (VIEWER_CONFIG.coordExample) {
+  document.getElementById('coord-search').placeholder = `lat, lng  (e.g. ${VIEWER_CONFIG.coordExample})`;
+}
+
+document.getElementById('coord-search').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const raw = e.target.value.trim();
+  if (!raw) return;
+
+  // Parse "lat, lng" — accepts optional comma separator
+  const parts = raw.split(/[\s,]+/).map(Number);
+  if (parts.length < 2 || parts.some(isNaN)) return;
+  const [lat, lng] = parts;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+
+  clearSearchMarker();
+
+  // Fly to location
+  map.flyTo({ center: [lng, lat], zoom: 18, duration: 1200 });
+
+  // Add red marker
+  const el = document.createElement('div');
+  el.className = 'search-marker';
+  searchMarker = new maplibregl.Marker({ element: el })
+    .setLngLat([lng, lat])
+    .addTo(map);
+
+  e.target.blur();
+});
+
+// Click anywhere on the map → dismiss the search marker
+map.on('click', () => { clearSearchMarker(); });
+
+// --- Pinned markers (right-click to place / right-click marker to remove) ---
+const pinnedMarkers = [];
+const ctxMenu = document.getElementById('context-menu');
+let ctxLngLat = null;       // map coords for "place" action
+let ctxMarkerIdx = null;    // index into pinnedMarkers for "remove" action
+
+function hideContextMenu() { ctxMenu.style.display = 'none'; }
+
+// Hide context menu on any left-click or scroll
+document.addEventListener('click', hideContextMenu);
+map.on('movestart', hideContextMenu);
+
+// Right-click on the map canvas → context menu
+map.getCanvas().addEventListener('contextmenu', (e) => {
+  if (e.target.closest('.pinned-marker')) return;
+
+  e.preventDefault();
+  ctxMarkerIdx = null;
+  ctxLngLat = map.unproject([e.offsetX, e.offsetY]);
+
+  // Check if right-click is over a detection polygon
+  const detLayers = Object.keys(CAPTURES)
+    .flatMap(c => CAPTURES[c].detections.map(d => `${c}-${d.tag}-detections-fill`))
+    .filter(id => map.getLayer(id) && map.getLayoutProperty(id, 'visibility') === 'visible');
+  const hitFeatures = detLayers.length
+    ? map.queryRenderedFeatures([e.offsetX, e.offsetY], { layers: detLayers })
+    : [];
+
+  let html = '';
+  let historyFeature = null;
+  if (hitFeatures.length > 0) {
+    historyFeature = hitFeatures[0];
+    html += '<div class="ctx-item" id="ctx-history">&#128338; Show history</div>';
+    if (activeCollection) {
+      html += `<div class="ctx-item" id="ctx-add-coll">&#128206; Add to ${activeCollection.name.substring(0, 20)}</div>`;
+    }
+    html += '<div class="ctx-sep"></div>';
+  }
+  html += '<div class="ctx-item" id="ctx-place">&#128205; Place a marker</div>';
+
+  ctxMenu.innerHTML = html;
+  ctxMenu.style.left = e.clientX + 'px';
+  ctxMenu.style.top = e.clientY + 'px';
+  ctxMenu.style.display = 'block';
+
+  if (historyFeature) {
+    document.getElementById('ctx-history').addEventListener('click', () => {
+      hideContextMenu();
+      showHistory(historyFeature);
+    }, { once: true });
+  }
+  if (activeCollection && hitFeatures.length > 0) {
+    document.getElementById('ctx-add-coll')?.addEventListener('click', () => {
+      hideContextMenu();
+      const f = hitFeatures[0];
+      const centroid = computeCentroid(f);
+      const p = f.properties;
+      const bw = parseFloat(p.bbox_w) || 5;
+      const bh = parseFloat(p.bbox_h) || 5;
+      const halfW = (bw / 2) / (111320 * Math.cos(centroid[1] * Math.PI / 180));
+      const halfH = (bh / 2) / 111320;
+      activeCollection.items.push({
+        id: `item_${Date.now()}`,
+        status: 'kept',
+        centroid,
+        bbox: [[centroid[0] - halfW, centroid[1] - halfH], [centroid[0] + halfW, centroid[1] + halfH]],
+        source_capture: activeCapture,
+        source_detection_tag: activeDetectionTag,
+        properties: {
+          score: p.score, pred_sp: p.pred_sp, pred_hl: p.pred_hl,
+          p_seqmat: p.p_seqmat, p_seqsp: p.p_seqsp, p_tree: p.p_tree,
+          p_dead: p.p_dead, p_firedama: p.p_firedama, p_normal: p.p_normal,
+          p_topdownt: p.p_topdownt, bbox_w: p.bbox_w, bbox_h: p.bbox_h,
+        },
+        tag: '',
+        reviewed_at: new Date().toISOString(),
+      });
+      saveCollection();
+      updateActiveCard();
+      updateCollectionLayer();
+    }, { once: true });
+  }
+  document.getElementById('ctx-place').addEventListener('click', () => {
+    hideContextMenu();
+    if (!ctxLngLat) return;
+    addPinnedMarker(ctxLngLat);
+  }, { once: true });
+});
+
+function addPinnedMarker(lngLat) {
+  const el = document.createElement('div');
+  el.className = 'pinned-marker';
+
+  const marker = new maplibregl.Marker({ element: el })
+    .setLngLat(lngLat)
+    .addTo(map);
+
+  const idx = pinnedMarkers.length;
+  pinnedMarkers.push(marker);
+
+  // Right-click on this marker → "Remove marker"
+  el.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ctxLngLat = null;
+    ctxMarkerIdx = idx;
+
+    ctxMenu.innerHTML = '<div class="ctx-item" id="ctx-remove">&#10060; Remove marker</div>';
+    ctxMenu.style.left = e.clientX + 'px';
+    ctxMenu.style.top = e.clientY + 'px';
+    ctxMenu.style.display = 'block';
+
+    document.getElementById('ctx-remove').addEventListener('click', () => {
+      hideContextMenu();
+      if (ctxMarkerIdx !== null && pinnedMarkers[ctxMarkerIdx]) {
+        pinnedMarkers[ctxMarkerIdx].remove();
+        pinnedMarkers[ctxMarkerIdx] = null;
+      }
+    }, { once: true });
+  });
+}
+
+// --- Shared mini-map helpers ---
+
+function computeSearchSquare(centroid, bboxW, bboxH) {
+  const bw = parseFloat(bboxW) || 5;
+  const bh = parseFloat(bboxH) || 5;
+  const side = 4 * Math.max(bw, bh, 5);
+  const halfM = side / 2;
+  const dLat = halfM / 111320;
+  const dLng = halfM / (111320 * Math.cos(centroid[1] * Math.PI / 180));
+  return [[centroid[0] - dLng, centroid[1] - dLat], [centroid[0] + dLng, centroid[1] + dLat]];
+}
+
+function findOverlappingCaptures(cLon, cLat) {
+  const B = 0.002;
+  return Object.entries(captureBounds).filter(([, b]) =>
+    b && cLon >= b[0] - B && cLon <= b[2] + B && cLat >= b[1] - B && cLat <= b[3] + B
+  );
+}
+
+function renderMiniMap(container, capId, bounds, opts = {}) {
+  const cap = CAPTURES[capId];
+  if (!cap) return null;
+  const outlineColors = colorMode === 'species' ? SPECIES_COLORS : HEALTH_COLORS;
+  const rasterType = opts.rasterType || activeRasterType;
+
+  const sources = {
+    raster: { type: 'raster', url: `pmtiles://${cap[rasterType]}`, tileSize: 256 },
+  };
+  const layers = [
+    { id: 'bg', type: 'background', paint: { 'background-color': '#111' } },
+    { id: 'raster', type: 'raster', source: 'raster', paint: { 'raster-opacity': 1 } },
+  ];
+
+  const detTag = opts.detectionTag || activeDetectionTag;
+  const activeDet = cap.detections.find(d => d.tag === detTag) || cap.detections[0];
+  if (activeDet) {
+    sources.detections = { type: 'vector', url: `pmtiles://${activeDet.path}` };
+    layers.push({
+      id: 'det-outline', type: 'line',
+      source: 'detections', 'source-layer': 'detections',
+      paint: { 'line-color': outlineColors, 'line-width': 1.5, 'line-opacity': 0.9 },
+    });
+  }
+
+  const miniMap = new maplibregl.Map({
+    container,
+    style: { version: 8, sources, layers },
+    interactive: false,
+    attributionControl: false,
+  });
+
+  miniMap.on('load', () => {
+    miniMap.fitBounds(bounds, { padding: 10, animate: false });
+    const filter = buildFilter();
+    if (activeDet) miniMap.setFilter('det-outline', filter);
+
+    if (opts.showPin) {
+      const pinEl = document.createElement('div');
+      pinEl.className = 'pinned-marker';
+      new maplibregl.Marker({ element: pinEl })
+        .setLngLat(opts.pinLngLat || [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2])
+        .addTo(miniMap);
+    }
+
+    for (const pm of pinnedMarkers) {
+      if (!pm) continue;
+      const el = document.createElement('div');
+      el.className = 'pinned-marker';
+      new maplibregl.Marker({ element: el }).setLngLat(pm.getLngLat()).addTo(miniMap);
+    }
+  });
+
+  return miniMap;
+}
+
+// --- History overlay ---
+let historyMiniMaps = [];
+
+function closeHistory() {
+  const overlay = document.getElementById('history-overlay');
+  overlay.classList.remove('visible');
+  // Destroy mini maps
+  for (const m of historyMiniMaps) m.remove();
+  historyMiniMaps = [];
+  document.getElementById('history-tiles').innerHTML = '';
+}
+
+document.getElementById('history-close').addEventListener('click', closeHistory);
+document.getElementById('history-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeHistory();
+});
+
+function showHistory(feature) {
+  const p = feature.properties;
+
+  let cLon = 0, cLat = 0, nPts = 0;
+  const coords = feature.geometry?.coordinates;
+  if (coords) {
+    const ring = coords[0] || coords;
+    for (const pt of ring) { cLon += pt[0]; cLat += pt[1]; nPts++; }
+    if (nPts > 0) { cLon /= nPts; cLat /= nPts; }
+  }
+
+  const bounds = computeSearchSquare([cLon, cLat], p.bbox_w, p.bbox_h);
+  const relevant = findOverlappingCaptures(cLon, cLat);
+  if (relevant.length === 0) return;
+
+  closeHistory();
+
+  const tilesEl = document.getElementById('history-tiles');
+  const titleEl = document.getElementById('history-title');
+  titleEl.textContent = `${p.pred_sp || 'tree'} — ${cLat.toFixed(5)}, ${cLon.toFixed(5)}`;
+
+  for (const [capId] of relevant) {
+    const tile = document.createElement('div');
+    tile.className = 'history-tile';
+    const label = document.createElement('div');
+    label.className = 'tile-label';
+    label.textContent = CAPTURES[capId].label;
+    const mapDiv = document.createElement('div');
+    mapDiv.className = 'mini-map';
+    mapDiv.id = `mini-map-${capId}`;
+    tile.appendChild(label);
+    tile.appendChild(mapDiv);
+    tilesEl.appendChild(tile);
+  }
+
+  document.getElementById('history-overlay').classList.add('visible');
+
+  requestAnimationFrame(() => {
+    for (const [capId] of relevant) {
+      const mm = renderMiniMap(`mini-map-${capId}`, capId, bounds);
+      if (mm) historyMiniMaps.push(mm);
+    }
+  });
+}
+
+// --- Collections logic ---
+
+async function loadCollections() {
+  const r = await apiGet('/collections');
+  if (r.ok) collections = await r.json();
+  renderCollectionsList();
+}
+
+function renderCollectionsList() {
+  const listEl = document.getElementById('coll-list-items');
+  if (collections.length === 0) {
+    listEl.innerHTML = '<div style="color:#888; font-size:12px">No collections yet</div>';
+    return;
+  }
+  listEl.innerHTML = '';
+  for (const c of collections) {
+    const item = document.createElement('div');
+    item.className = 'coll-list-item' + (activeCollection && activeCollection.id === c.id ? ' active' : '');
+    item.innerHTML = `<span>${c.name}</span><span class="coll-count">${c.kept} kept</span>`;
+    item.addEventListener('click', () => activateCollection(c.id));
+    listEl.appendChild(item);
+  }
+}
+
+async function activateCollection(collId) {
+  const r = await apiGet(`/collections/${collId}`);
+  if (!r.ok) return;
+  activeCollection = await r.json();
+  updateActiveCard();
+  renderCollectionsList();
+  updateCollectionLayer();
+}
+
+function updateActiveCard() {
+  const el = document.getElementById('coll-active');
+  if (!activeCollection) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  document.getElementById('coll-active-name').textContent = activeCollection.name;
+  const kept = activeCollection.items.filter(i => i.status === 'kept').length;
+  const dismissed = activeCollection.dismissed.length;
+  const pending = activeCollection.items.filter(i => i.status === 'pending').length;
+  const total = kept + dismissed + pending;
+  document.getElementById('coll-active-stats').textContent =
+    `${kept} kept · ${dismissed} dismissed · ${pending} remaining`;
+  const pct = total > 0 ? ((kept + dismissed) / total * 100) : 0;
+  document.getElementById('coll-progress-bar').style.width = `${pct}%`;
+}
+
+function updateCollectionLayer() {
+  if (!map.getSource('collection-highlights')) {
+    map.addSource('collection-highlights', {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    });
+    map.addLayer({
+      id: 'collection-highlights-outline',
+      type: 'line',
+      source: 'collection-highlights',
+      paint: { 'line-color': '#f1c40f', 'line-width': 2, 'line-opacity': 0.9, 'line-dasharray': [4, 4] },
+    });
+  }
+  if (!activeCollection) {
+    map.getSource('collection-highlights').setData({ type: 'FeatureCollection', features: [] });
+    return;
+  }
+  const features = activeCollection.items
+    .filter(i => i.status === 'kept' && i.bbox)
+    .map(i => ({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[
+          [i.bbox[0][0], i.bbox[0][1]], [i.bbox[1][0], i.bbox[0][1]],
+          [i.bbox[1][0], i.bbox[1][1]], [i.bbox[0][0], i.bbox[1][1]],
+          [i.bbox[0][0], i.bbox[0][1]],
+        ]],
+      },
+      properties: { tag: i.tag || '' },
+    }));
+  map.getSource('collection-highlights').setData({ type: 'FeatureCollection', features });
+}
+
+async function saveCollection() {
+  if (!activeCollection) return;
+  clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    await apiPut(`/collections/${activeCollection.id}`, activeCollection);
+    await loadCollections();
+  }, 500);
+}
+
+function computeCentroid(feature) {
+  let cLon = 0, cLat = 0, nPts = 0;
+  const coords = feature.geometry?.coordinates;
+  if (coords) {
+    const ring = coords[0] || coords;
+    for (const pt of ring) { cLon += pt[0]; cLat += pt[1]; nPts++; }
+    if (nPts > 0) { cLon /= nPts; cLat /= nPts; }
+  }
+  return [cLon, cLat];
+}
+
+function pointInPolygon(point, polygon) {
+  const rings = polygon.type === 'MultiPolygon'
+    ? polygon.coordinates.flat()
+    : polygon.coordinates;
+  for (const ring of rings) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      if (((yi > point[1]) !== (yj > point[1])) &&
+          (point[0] < (xj - xi) * (point[1] - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    if (inside) return true;
+  }
+  return false;
+}
+
+function isNearDismissed(centroid, dismissed, radius) {
+  const r = radius || 0.00005;
+  return dismissed.some(d => {
+    const dc = d.centroid;
+    return Math.abs(dc[0] - centroid[0]) < r && Math.abs(dc[1] - centroid[1]) < r;
+  });
+}
+
+const TEMPORAL_PRESETS = {
+  dead_seqmat: {
+    label: `Dead ${SPECIES_LABELS.seqmat.toLowerCase()} trees`,
+    temporal: false,
+    currentFilter: f => f.properties.pred_sp === 'seqmat' && f.properties.pred_hl === 'dead',
+  },
+  tdt_seqmat: {
+    label: `Dying ${SPECIES_LABELS.seqmat.toLowerCase()} trees (TDT)`,
+    temporal: false,
+    currentFilter: f => f.properties.pred_sp === 'seqmat' && f.properties.pred_hl === 'topdownthreat',
+  },
+  tdt_to_dead: {
+    label: 'TDT → Dead',
+    temporal: true,
+    currentFilter: f => f.properties.pred_sp === 'seqmat' && f.properties.pred_hl === 'dead',
+    pastCondition: 'topdownthreat',
+  },
+  normal_to_tdt: {
+    label: 'Normal → TDT',
+    temporal: true,
+    currentFilter: f => f.properties.pred_sp === 'seqmat' && f.properties.pred_hl === 'topdownthreat',
+    pastCondition: 'normal',
+  },
+  fire_seqmat: {
+    label: `Fire-damaged ${SPECIES_LABELS.seqmat.toLowerCase()} trees`,
+    temporal: false,
+    currentFilter: f => f.properties.pred_sp === 'seqmat' && f.properties.pred_hl === 'firedamage',
+  },
+};
+
+// Preset option text follows the preset definitions, which follow config.js.
+for (const [key, preset] of Object.entries(TEMPORAL_PRESETS)) {
+  const opt = document.querySelector(`#coll-preset option[value="${key}"]`);
+  if (opt) opt.textContent = preset.label;
+}
+
+async function generateCollection() {
+  const groveName = document.getElementById('grove-picker').value;
+  if (!groveName || !GROVES[groveName]) {
+    alert('Please select a grove first.');
+    return;
+  }
+  const grove = GROVES[groveName];
+  const presetKey = document.getElementById('coll-preset').value;
+  const preset = presetKey ? TEMPORAL_PRESETS[presetKey] : null;
+
+  let name = document.getElementById('coll-name-input').value.trim();
+  if (!name) {
+    name = preset ? `${preset.label} — ${groveName}` : `Filtered — ${groveName}`;
+  }
+
+  const srcId = `${activeCapture}-${activeDetectionTag}-detections`;
+  if (!map.getSource(srcId)) {
+    alert('No detection source loaded.');
+    return;
+  }
+
+  const allFeatures = map.querySourceFeatures(srcId, { sourceLayer: 'detections' });
+
+  let candidates;
+  if (preset) {
+    candidates = allFeatures.filter(preset.currentFilter);
+  } else {
+    const filter = buildFilter();
+    candidates = allFeatures.filter(f => {
+      if (!filter) return true;
+      for (let i = 1; i < filter.length; i++) {
+        const cond = filter[i];
+        const attr = cond[1][1];
+        const threshold = cond[2];
+        if ((f.properties[attr] || 0) < threshold) return false;
+      }
+      return true;
+    });
+  }
+
+  // Filter to grove boundary
+  candidates = candidates.filter(f => {
+    const c = computeCentroid(f);
+    return pointInPolygon(c, grove.geometry);
+  });
+
+  // Deduplicate (querySourceFeatures can return dupes across tiles)
+  const seen = new Set();
+  candidates = candidates.filter(f => {
+    const c = computeCentroid(f);
+    const key = `${c[0].toFixed(6)},${c[1].toFixed(6)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // Temporal preset: check past captures
+  if (preset && preset.temporal) {
+    const temporalCandidates = [];
+    for (const f of candidates) {
+      const centroid = computeCentroid(f);
+      const bounds = computeSearchSquare(centroid, f.properties.bbox_w, f.properties.bbox_h);
+      const overlapping = findOverlappingCaptures(centroid[0], centroid[1])
+        .filter(([capId]) => capId !== activeCapture);
+      let matchesPast = false;
+      for (const [pastCapId] of overlapping) {
+        const pastCap = CAPTURES[pastCapId];
+        const pastDet = pastCap.detections.find(d => d.tag === activeDetectionTag) || pastCap.detections[0];
+        if (!pastDet) continue;
+        const pastSrcId = `${pastCapId}-${pastDet.tag}-detections`;
+        if (!map.getSource(pastSrcId)) continue;
+        const pastFeatures = map.querySourceFeatures(pastSrcId, { sourceLayer: 'detections' });
+        const inVicinity = pastFeatures.filter(pf => {
+          const pc = computeCentroid(pf);
+          return pc[0] >= bounds[0][0] && pc[0] <= bounds[1][0] &&
+                 pc[1] >= bounds[0][1] && pc[1] <= bounds[1][1];
+        });
+        if (inVicinity.length > 0) {
+          const healthCounts = {};
+          for (const pf of inVicinity) {
+            const h = pf.properties.pred_hl;
+            healthCounts[h] = (healthCounts[h] || 0) + 1;
+          }
+          const dominant = Object.entries(healthCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (dominant === preset.pastCondition) { matchesPast = true; break; }
+        }
+      }
+      if (matchesPast) temporalCandidates.push(f);
+    }
+    candidates = temporalCandidates;
+  }
+
+  if (candidates.length === 0) {
+    alert('No candidates found matching the criteria in this grove.');
+    return;
+  }
+
+  // Build collection items
+  const items = candidates.map((f, i) => {
+    const centroid = computeCentroid(f);
+    const p = f.properties;
+    const bw = parseFloat(p.bbox_w) || 5;
+    const bh = parseFloat(p.bbox_h) || 5;
+    const halfW = (bw / 2) / (111320 * Math.cos(centroid[1] * Math.PI / 180));
+    const halfH = (bh / 2) / 111320;
+    return {
+      id: `item_${String(i).padStart(4, '0')}`,
+      status: 'pending',
+      centroid,
+      bbox: [[centroid[0] - halfW, centroid[1] - halfH], [centroid[0] + halfW, centroid[1] + halfH]],
+      source_capture: activeCapture,
+      source_detection_tag: activeDetectionTag,
+      properties: {
+        score: p.score, pred_sp: p.pred_sp, pred_hl: p.pred_hl,
+        p_seqmat: p.p_seqmat, p_seqsp: p.p_seqsp, p_tree: p.p_tree,
+        p_dead: p.p_dead, p_firedama: p.p_firedama, p_normal: p.p_normal,
+        p_topdownt: p.p_topdownt, bbox_w: p.bbox_w, bbox_h: p.bbox_h,
+      },
+      tag: '',
+      reviewed_at: null,
+    };
+  });
+
+  const dismissed = activeCollection ? activeCollection.dismissed : [];
+  const filteredItems = items.filter(i => !isNearDismissed(i.centroid, dismissed, 0.00005));
+
+  const r = await apiPost('/collections', {
+    name,
+    grove: groveName,
+    generation: {
+      mode: preset?.temporal ? 'temporal' : 'filter',
+      preset: presetKey || null,
+      capture: activeCapture,
+      detection_tag: activeDetectionTag,
+      filters: preset ? null : Object.fromEntries(
+        FILTER_ATTRS.map(a => [a, parseFloat(document.getElementById(`filter-${a}`).value)])
+          .filter(([, v]) => v > 0)
+      ),
+    },
+    items: filteredItems,
+  });
+
+  if (r.ok) {
+    const coll = await r.json();
+    activeCollection = coll;
+    await loadCollections();
+    updateActiveCard();
+    document.getElementById('coll-name-input').value = '';
+    openGallery();
+  }
+}
+
+document.getElementById('coll-generate-btn').addEventListener('click', generateCollection);
+
+document.getElementById('coll-resume-btn')?.addEventListener('click', () => {
+  if (activeCollection) openGallery();
+});
+
+document.getElementById('coll-delete-btn')?.addEventListener('click', async () => {
+  if (!activeCollection) return;
+  if (!confirm(`Delete "${activeCollection.name}"?`)) return;
+  await apiDelete(`/collections/${activeCollection.id}`);
+  activeCollection = null;
+  updateActiveCard();
+  updateCollectionLayer();
+  await loadCollections();
+});
+
+document.getElementById('coll-export-csv-btn')?.addEventListener('click', () => {
+  if (!activeCollection) return;
+  window.open(`/api/collections/${activeCollection.id}/export/csv`, '_blank');
+});
+
+document.getElementById('coll-export-full-btn')?.addEventListener('click', () => {
+  if (!activeCollection) return;
+  window.open(`/api/collections/${activeCollection.id}/export/bundle`, '_blank');
+});
+
+map.on('load', async () => {
+  const wr = await apiGet('/whoami');
+  if (wr.ok) {
+    const data = await wr.json();
+    currentUser = data.username;
+    document.getElementById('coll-user').textContent = currentUser;
+  }
+  await loadCollections();
+});
+
+// --- Review gallery ---
+
+function closeGallery() {
+  document.getElementById('gallery-overlay').classList.remove('visible');
+  for (const m of galleryMiniMaps) m.remove();
+  galleryMiniMaps = [];
+  document.getElementById('gallery-tiles').innerHTML = '';
+}
+
+function openGallery() {
+  if (!activeCollection) return;
+  galleryQueue = activeCollection.items;
+  const firstPending = galleryQueue.findIndex(i => i.status === 'pending');
+  galleryIndex = firstPending >= 0 ? firstPending : (activeCollection.review_index || 0);
+  if (galleryIndex >= galleryQueue.length) galleryIndex = 0;
+  document.getElementById('gallery-overlay').classList.add('visible');
+  renderGalleryItem();
+}
+
+function renderGalleryItem() {
+  if (!activeCollection || galleryQueue.length === 0) return;
+  const item = galleryQueue[galleryIndex];
+  if (!item) return;
+
+  for (const m of galleryMiniMaps) m.remove();
+  galleryMiniMaps = [];
+  document.getElementById('gallery-tiles').innerHTML = '';
+
+  document.getElementById('gallery-counter').textContent =
+    `Tree ${galleryIndex + 1} of ${galleryQueue.length}`;
+  const p = item.properties || {};
+  document.getElementById('gallery-subtitle').textContent =
+    `${p.pred_hl || '?'} ${p.pred_sp || 'tree'} — ${item.centroid[1]?.toFixed(5)}, ${item.centroid[0]?.toFixed(5)}` +
+    (item.status !== 'pending' ? ` [${item.status}]` : '');
+
+  document.getElementById('gallery-tag-input').value = item.tag || '';
+
+  document.getElementById('gallery-prev').disabled = galleryIndex === 0;
+  document.getElementById('gallery-next').disabled = galleryIndex >= galleryQueue.length - 1;
+
+  const bounds = computeSearchSquare(item.centroid, p.bbox_w, p.bbox_h);
+  const relevant = findOverlappingCaptures(item.centroid[0], item.centroid[1]);
+  const tilesEl = document.getElementById('gallery-tiles');
+
+  const healthColors = {
+    normal: '#2ecc71', dead: '#e74c3c', firedamage: '#e67e22', topdownthreat: '#f1c40f'
+  };
+
+  for (const [capId] of relevant) {
+    const cap = CAPTURES[capId];
+    const tile = document.createElement('div');
+    tile.className = 'gallery-tile';
+    const label = document.createElement('div');
+    label.className = 'tile-label';
+    label.textContent = cap.label;
+    const mapDiv = document.createElement('div');
+    mapDiv.className = 'mini-map';
+    const mapId = `gallery-mini-${capId}-${Date.now()}`;
+    mapDiv.id = mapId;
+    tile.appendChild(label);
+    tile.appendChild(mapDiv);
+
+    const det = cap.detections.find(d => d.tag === activeDetectionTag) || cap.detections[0];
+    if (det) {
+      const pastSrcId = `${capId}-${det.tag}-detections`;
+      if (map.getSource(pastSrcId)) {
+        const nearby = map.querySourceFeatures(pastSrcId, { sourceLayer: 'detections' });
+        const inBounds = nearby.filter(f => {
+          const c = computeCentroid(f);
+          return c[0] >= bounds[0][0] && c[0] <= bounds[1][0] &&
+                 c[1] >= bounds[0][1] && c[1] <= bounds[1][1];
+        });
+        if (inBounds.length > 0) {
+          const counts = {};
+          for (const f of inBounds) {
+            const h = f.properties.pred_hl;
+            counts[h] = (counts[h] || 0) + 1;
+          }
+          const dominant = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          if (dominant) {
+            const badge = document.createElement('div');
+            badge.className = 'tile-health';
+            badge.style.background = healthColors[dominant] || '#999';
+            badge.style.color = dominant === 'topdownthreat' ? '#333' : '#fff';
+            badge.textContent = dominant;
+            tile.appendChild(badge);
+          }
+        }
+      }
+    }
+
+    tilesEl.appendChild(tile);
+  }
+
+  requestAnimationFrame(() => {
+    for (const [capId] of relevant) {
+      const mapId = tilesEl.querySelector(`[id^="gallery-mini-${capId}"]`)?.id;
+      if (!mapId) continue;
+      const mm = renderMiniMap(mapId, capId, bounds, {
+        showPin: true,
+        pinLngLat: item.centroid,
+      });
+      if (mm) galleryMiniMaps.push(mm);
+    }
+  });
+}
+
+function galleryKeep() {
+  if (!activeCollection || galleryIndex >= galleryQueue.length) return;
+  const item = galleryQueue[galleryIndex];
+  item.status = 'kept';
+  item.tag = document.getElementById('gallery-tag-input').value.trim();
+  item.reviewed_at = new Date().toISOString();
+  activeCollection.review_index = galleryIndex + 1;
+  saveCollection();
+  updateActiveCard();
+  updateCollectionLayer();
+  galleryNext();
+}
+
+function galleryDismiss() {
+  if (!activeCollection || galleryIndex >= galleryQueue.length) return;
+  const item = galleryQueue[galleryIndex];
+  item.status = 'dismissed';
+  item.reviewed_at = new Date().toISOString();
+  activeCollection.dismissed.push({
+    centroid: item.centroid,
+    dismissed_at: new Date().toISOString(),
+  });
+  activeCollection.review_index = galleryIndex + 1;
+  activeCollection.items = activeCollection.items.filter(i => i.id !== item.id);
+  galleryQueue = activeCollection.items;
+  saveCollection();
+  updateActiveCard();
+  if (galleryIndex >= galleryQueue.length) galleryIndex = Math.max(0, galleryQueue.length - 1);
+  if (galleryQueue.length === 0) { closeGallery(); return; }
+  renderGalleryItem();
+}
+
+function gallerySkip() {
+  galleryNext();
+}
+
+function galleryFlyTo() {
+  if (!activeCollection || galleryIndex >= galleryQueue.length) return;
+  const item = galleryQueue[galleryIndex];
+  closeGallery();
+  map.flyTo({ center: item.centroid, zoom: 19, duration: 1200 });
+}
+
+function galleryNext() {
+  if (galleryIndex < galleryQueue.length - 1) {
+    galleryIndex++;
+    renderGalleryItem();
+  }
+}
+
+function galleryPrev() {
+  if (galleryIndex > 0) {
+    galleryIndex--;
+    renderGalleryItem();
+  }
+}
+
+document.getElementById('gallery-close').addEventListener('click', closeGallery);
+document.getElementById('gallery-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeGallery();
+});
+document.getElementById('gallery-keep').addEventListener('click', galleryKeep);
+document.getElementById('gallery-dismiss').addEventListener('click', galleryDismiss);
+document.getElementById('gallery-skip').addEventListener('click', gallerySkip);
+document.getElementById('gallery-flyto').addEventListener('click', galleryFlyTo);
+document.getElementById('gallery-prev').addEventListener('click', galleryPrev);
+document.getElementById('gallery-next').addEventListener('click', galleryNext);
+
+document.addEventListener('keydown', (e) => {
+  if (!document.getElementById('gallery-overlay').classList.contains('visible')) return;
+  if (e.target.id === 'gallery-tag-input' && e.key !== 'Escape') return;
+
+  switch (e.key) {
+    case 'Enter': e.preventDefault(); galleryKeep(); break;
+    case 'd': case 'D': e.preventDefault(); galleryDismiss(); break;
+    case 's': case 'S': e.preventDefault(); gallerySkip(); break;
+    case 'f': case 'F': e.preventDefault(); galleryFlyTo(); break;
+    case 'ArrowLeft': e.preventDefault(); galleryPrev(); break;
+    case 'ArrowRight': e.preventDefault(); galleryNext(); break;
+    case 'Escape': e.preventDefault(); closeGallery(); break;
+  }
+});
+</script>
+</body>
+</html>

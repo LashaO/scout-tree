@@ -1,0 +1,9 @@
+data/
+__pycache__/
+*.pyc
+.DS_Store
+experiments/
+raw_data/
+wandb/
+*.pmtiles
+.pytest_cache/
